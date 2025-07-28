@@ -3,7 +3,7 @@ import { authService } from '../services/apiService';
 import { achievementService } from '../services/apiService';
 
 // Create context
-const AuthContext = createContext();
+const AuthContext = createContext(undefined);
 
 // Custom hook to use the auth context
 export const useAuth = () => {
@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
         const user = authService.getCurrentUser();
         setCurrentUser(user);
         
-        // If user exists but no achievements, initialize them
+        // If a user exists but no achievements, initialize them
         if (user && authService.isAuthenticated()) {
           try {
             await achievementService.initializeAchievements();

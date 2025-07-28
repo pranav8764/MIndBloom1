@@ -9,6 +9,7 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -24,7 +25,13 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+  margin: 0;
+  
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
@@ -54,7 +61,17 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: var(--color-dark-bg);
+    --color-text: var(--color-dark-text);
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+}
   :root {
     color: #213547;
     background-color: #ffffff;

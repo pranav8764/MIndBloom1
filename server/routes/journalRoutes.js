@@ -3,10 +3,10 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const JournalEntry = require('../models/Journal');
+const auth = require('../middleware/auth');
 const { Achievement } = require('../models/Achievement');
 
-// Auth middleware
-const auth = async (req, res, next) => {
+
   try {
     // Get token from header
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -32,8 +32,6 @@ const auth = async (req, res, next) => {
   } catch (error) {
     res.status(401).json({ message: 'Authentication failed', error: error.message });
   }
-};
-
 // @route   POST /api/journal
 // @desc    Create a new journal entry
 // @access  Private

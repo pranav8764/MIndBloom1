@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { journalService } from '../../services/apiService';
 import './Journal.css';
 
 const Journal = () => {
@@ -6,32 +7,26 @@ const Journal = () => {
   const [mood, setMood] = useState(5);
   const [journalText, setJournalText] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState('');
-  
-  // Mock data for journal entries
-  const [journalEntries, setJournalEntries] = useState([
-    {
-      id: 1,
-      date: '2023-07-10',
-      mood: 8,
-      content: 'Today was a productive day. I completed my work tasks ahead of schedule and had time for a long walk in the evening. Feeling accomplished!',
-      tags: ['productive', 'exercise', 'accomplishment']
-    },
-    {
-      id: 2,
-      date: '2023-07-09',
-      mood: 6,
-      content: 'Felt a bit anxious in the morning but meditation helped. The rest of the day was better. Need to remember to take breaks when feeling overwhelmed.',
-      tags: ['anxiety', 'meditation', 'self-care']
-    },
-    {
-      id: 3,
-      date: '2023-07-08',
-      mood: 7,
-      content: 'Had a good conversation with a friend I haven\'t spoken to in a while. It reminded me of the importance of maintaining connections.',
-      tags: ['social', 'connection', 'friendship']
-    }
-  ]);
-  
+
+  // Journal entries fetched from API
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [loadingEntries, setLoadingEntries] = useState(true);
+
+  // Fetch entries on mount
+  useEffect(() => {
+    const fetchEntries = async () => {
+      try {
+        const { journalEntries } = await journalService.getEntries();
+        setJournalEntries(journalEntries);
+      } catch (err) {
+        console.error('Failed to fetch journal entries', err);
+      } finally {
+        setLoadingEntries(false);
+      }
+    };
+    fetchEntries();
+  }, []);
+
   // Journal prompts
   const journalPrompts = [
     "What are three things you're grateful for today?",
@@ -45,7 +40,7 @@ const Journal = () => {
     "How did you move your body today?",
     "What's something kind you did for someone else today?"
   ];
-  
+
   // Mood labels
   const moodLabels = {
     1: 'Very Low',
@@ -59,31 +54,49 @@ const Journal = () => {
     9: 'Excellent',
     10: 'Amazing'
   };
-  
+
   // Handle journal submission
-  const handleSubmitJournal = (e) => {
+  const handleSubmitJournal = async (e) => {
     e.preventDefault();
-    
+
     if (journalText.trim() === '') {
       alert('Please write something in your journal entry');
       return;
     }
-    
-    const newEntry = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
+
+    const entryData = {
       mood,
       content: journalText,
-      tags: [] // In a real app, we would extract tags or let users add them
+      prompt: selectedPrompt,
+      tags: [],
+      gratitude: [],
+      activities: []
     };
-    
-    setJournalEntries([newEntry, ...journalEntries]);
+    // Optimistic update
+    const tempId = Date.now();
+    const optimisticEntry = {
+      _id: tempId,
+      date: new Date().toISOString(),
+      ...entryData
+    };
+    setJournalEntries([optimisticEntry, ...journalEntries]);
+
+    try {
+      const { journalEntry } = await journalService.createEntry(entryData);
+      // Replace temp entry with real entry
+      setJournalEntries((prev) => prev.map((e) => (e._id === tempId ? journalEntry : e)));
+    } catch (err) {
+      console.error('Failed to save journal entry', err);
+      // Rollback optimistic update
+      setJournalEntries((prev) => prev.filter((e) => e._id !== tempId));
+      alert('Failed to save entry. Please try again.');
+    }
     setJournalText('');
     setMood(5);
     setSelectedPrompt('');
     setActiveTab('history');
   };
-  
+
   // Handle selecting a prompt
   const handleSelectPrompt = (prompt) => {
     setSelectedPrompt(prompt);
