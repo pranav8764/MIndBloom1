@@ -15,10 +15,12 @@ const Journal = () => {
   useEffect(() => {
     const fetchEntries = async () => {
       try {
-        const { journalEntries } = await journalService.getEntries();
-        setJournalEntries(journalEntries);
+        const response = await journalService.getEntries();
+        const entries = response.journalEntries || response || [];
+        setJournalEntries(entries);
       } catch (err) {
         console.error('Failed to fetch journal entries', err);
+        setJournalEntries([]);
       }
     };
     fetchEntries();
@@ -35,8 +37,10 @@ const Journal = () => {
     "Describe a moment that brought you peace today.",
     "What boundaries did you set or maintain today?",
     "How did you move your body today?",
-    "What's something kind you did for someone else today?"
-  ];
+    "What's something kind you did for someone else today?",
+    "What is one small victory you are proud of today, no matter how minor?",
+    "Reflect on a moment today when you felt truly present. What were you doing?"
+    ];
 
   // Mood labels
   const moodLabels = {
@@ -79,7 +83,8 @@ const Journal = () => {
     setJournalEntries([optimisticEntry, ...journalEntries]);
 
     try {
-      const { journalEntry } = await journalService.createEntry(entryData);
+      const response = await journalService.createEntry(entryData);
+      const journalEntry = response.journalEntry || response;
       // Replace temp entry with real entry
       setJournalEntries((prev) => prev.map((e) => (e._id === tempId ? journalEntry : e)));
     } catch (err) {
@@ -98,6 +103,7 @@ const Journal = () => {
   const handleSelectPrompt = (prompt) => {
     setSelectedPrompt(prompt);
     setJournalText(journalText ? `${journalText}\n\n${prompt}\n` : `${prompt}\n`);
+    setActiveTab('new'); // Switch to new entry tab
   };
   
   return (
@@ -195,9 +201,16 @@ const Journal = () => {
           <div className="journal-history">
             {journalEntries.length > 0 ? (
               journalEntries.map(entry => (
-                <div className="journal-entry" key={entry.id}>
+                <div className="journal-entry" key={entry._id || entry.id}>
                   <div className="entry-header">
-                    <div className="entry-date">{entry.date}</div>
+                    <div className="entry-date">
+                      {new Date(entry.date || entry.createdAt).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
                     <div className="entry-mood">
                       <span className="mood-indicator" style={{ 
                         backgroundColor: `hsl(${(entry.mood * 12)}, 80%, 60%)` 
@@ -208,7 +221,7 @@ const Journal = () => {
                   <div className="entry-content">
                     <p>{entry.content}</p>
                   </div>
-                  {entry.tags.length > 0 && (
+                  {entry.tags && entry.tags.length > 0 && (
                     <div className="entry-tags">
                       {entry.tags.map((tag, index) => (
                         <span className="tag" key={index}>#{tag}</span>

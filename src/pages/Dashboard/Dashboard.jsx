@@ -1,43 +1,112 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { userService, journalService } from '../../services/apiService';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  // Mock data for demonstration
+  const { currentUser: user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
-  
-  // Mock user data
-  const userData = {
-    name: 'Alex Johnson',
-    level: 12,
-    xp: 1250,
-    nextLevelXp: 1500,
-    streakDays: 15,
-    totalJournalEntries: 45,
-    completedChallenges: 8,
-    achievements: 12
+  const [userData, setUserData] = useState({});
+  const [moodData, setMoodData] = useState([]);
+  const [habitData, setHabitData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch user stats
+      const stats = await userService.getStats();
+      const levelInfo = await userService.getLevelInfo();
+      
+      const newUserData = {
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+        level: stats.level || user.level || 1,
+        xp: stats.xp || user.xp || 0,
+        nextLevelXp: levelInfo.nextLevelXp || (stats.level * 100),
+        streakDays: stats.streakDays || user.streakDays || 0,
+        totalJournalEntries: stats.totalJournalEntries || 0,
+        completedChallenges: stats.completedChallenges || 0,
+        achievements: stats.totalAchievements || 0
+      };
+      
+      setUserData(newUserData);
+
+      // Try to fetch mood data (last 7 days)
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - 7);
+        const moodStats = await journalService.getMoodStats(startDate.toISOString(), endDate.toISOString());
+        
+        if (moodStats && moodStats.length > 0) {
+          // Convert API data to chart format
+          const chartData = moodStats.map(stat => ({
+            day: new Date(stat._id).toLocaleDateString('en', { weekday: 'short' }),
+            mood: Math.round(stat.averageMood)
+          }));
+          setMoodData(chartData);
+        } else {
+          // Fallback to mock data
+          setMoodData([
+            { day: 'Mon', mood: 7 },
+            { day: 'Tue', mood: 6 },
+            { day: 'Wed', mood: 8 },
+            { day: 'Thu', mood: 5 },
+            { day: 'Fri', mood: 7 },
+            { day: 'Sat', mood: 9 },
+            { day: 'Sun', mood: 8 }
+          ]);
+        }
+      } catch (moodError) {
+        console.warn('Could not fetch mood data, using mock data:', moodError);
+        setMoodData([
+          { day: 'Mon', mood: 7 },
+          { day: 'Tue', mood: 6 },
+          { day: 'Wed', mood: 8 },
+          { day: 'Thu', mood: 5 },
+          { day: 'Fri', mood: 7 },
+          { day: 'Sat', mood: 9 },
+          { day: 'Sun', mood: 8 }
+        ]);
+      }
+
+      // Update habit data with real journaling info
+      setHabitData([
+        { name: 'Meditation', completed: 12, total: 15, streak: 5 },
+        { name: 'Exercise', completed: 8, total: 15, streak: 0 },
+        { name: 'Journaling', completed: newUserData.totalJournalEntries % 15, total: 15, streak: newUserData.streakDays },
+        { name: 'Reading', completed: 10, total: 15, streak: 3 }
+      ]);
+      
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      // Set fallback data
+      setUserData({
+        name: user.username || 'User',
+        level: user.level || 1,
+        xp: user.xp || 0,
+        nextLevelXp: (user.level || 1) * 100,
+        streakDays: user.streakDays || 0,
+        totalJournalEntries: 0,
+        completedChallenges: 0,
+        achievements: 0
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  // Mock mood data for the chart
-  const moodData = [
-    { day: 'Mon', mood: 7 },
-    { day: 'Tue', mood: 6 },
-    { day: 'Wed', mood: 8 },
-    { day: 'Thu', mood: 5 },
-    { day: 'Fri', mood: 7 },
-    { day: 'Sat', mood: 9 },
-    { day: 'Sun', mood: 8 }
-  ];
-  
-  // Mock habit data
-  const habitData = [
-    { name: 'Meditation', completed: 12, total: 15, streak: 5 },
-    { name: 'Exercise', completed: 8, total: 15, streak: 0 },
-    { name: 'Journaling', completed: 15, total: 15, streak: 15 },
-    { name: 'Reading', completed: 10, total: 15, streak: 3 }
-  ];
+
+  if (loading) {
+    return <div className="dashboard-page">Loading your dashboard...</div>;
+  }
   
   // Calculate progress percentage for XP
-  const xpProgressPercentage = (userData.xp / userData.nextLevelXp) * 100;
+  const xpProgressPercentage = userData.nextLevelXp ? (userData.xp / userData.nextLevelXp) * 100 : 0;
   
   return (
     <div className="dashboard-page">

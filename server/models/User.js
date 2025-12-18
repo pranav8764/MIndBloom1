@@ -59,6 +59,13 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Badge'
   }],
+  stats: {
+    totalJournalEntries: { type: Number, default: 0 },
+    completedChallenges: { type: Number, default: 0 },
+    challengesCreated: { type: Number, default: 0 },
+    challengesJoined: { type: Number, default: 0 },
+    tasksCompleted: { type: Number, default: 0 }
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -97,8 +104,10 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Method to calculate XP needed for next level
 UserSchema.methods.xpForNextLevel = function() {
-  // Simple formula: 100 * current level
-  return 100 * this.level;
+  // Progressive formula: base XP * level multiplier
+  const baseXp = 100;
+  const multiplier = 1.5;
+  return Math.floor(baseXp * Math.pow(multiplier, this.level - 1));
 };
 
 // Method to add XP and handle level ups
@@ -106,10 +115,11 @@ UserSchema.methods.addXP = function(amount) {
   this.xp += amount;
   
   // Check for level up
-  const xpNeeded = this.xpForNextLevel();
-  if (this.xp >= xpNeeded) {
+  let xpNeeded = this.xpForNextLevel();
+  while (this.xp >= xpNeeded) {
     this.level += 1;
     this.xp -= xpNeeded;
+    xpNeeded = this.xpForNextLevel();
   }
   
   return this.save();

@@ -10,6 +10,9 @@ import Dashboard from './pages/Dashboard/Dashboard'
 import Journal from './pages/Journal/Journal'
 import Challenges from './pages/Challenges/Challenges'
 import Achievements from './pages/Achievements/Achievements'
+import Register from './pages/Register/Register'
+import Login from './pages/Login/Login'
+import Profile from './pages/Profile/Profile'
 
 function App() {
   return (
@@ -21,7 +24,9 @@ function App() {
           <Route path="journal" element={<Journal />} />
           <Route path="challenges" element={<Challenges />} />
           <Route path="achievements" element={<Achievements />} />
-
+          <Route path="profile" element={<Profile />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
           {/* Redirect to home for any undefined routes */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

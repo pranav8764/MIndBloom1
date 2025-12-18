@@ -89,10 +89,14 @@ const ChallengeSchema = new mongoose.Schema({
     type: Number, // in days
     required: [true, 'Challenge duration is required']
   },
-  isPrivate: {
+  isPublic: {
     type: Boolean,
-    default: false
+    default: true
   },
+  invitedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   joinCode: {
     type: String,
     trim: true
@@ -142,7 +146,7 @@ ChallengeSchema.pre('save', function(next) {
 
 // Generate a random join code for private challenges
 ChallengeSchema.pre('save', function(next) {
-  if (this.isPrivate && !this.joinCode) {
+  if (!this.isPublic && !this.joinCode) {
     // Generate a random 8-character alphanumeric code
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -162,7 +166,7 @@ ChallengeSchema.index({ joinCode: 1 }, { sparse: true });
 ChallengeSchema.statics.getActivePublicChallenges = function(category = null) {
   const now = new Date();
   const query = {
-    isPrivate: false,
+    isPublic: true,
     isActive: true,
     endDate: { $gte: now }
   };

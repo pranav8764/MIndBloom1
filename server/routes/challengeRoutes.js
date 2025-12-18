@@ -1,38 +1,52 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Challenge = require('../models/Challenge');
 const { Achievement } = require('../models/Achievement');
 
-// Auth middleware
-const auth = async (req, res, next) => {
+// Import centralized auth middleware
+const auth = require('../middleware/auth');
+
+// @route   GET /api/challenges/user/active
+// @desc    Get user's active challenges
+// @access  Private
+router.get('/user/active', auth, async (req, res) => {
   try {
-    // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const now = new Date();
     
-    if (!token) {
-      return res.status(401).json({ message: 'No authentication token, access denied' });
-    }
-    
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
-    // Find user by id
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'User not found, authentication failed' });
-    }
-    
-    // Add user to request object
-    req.user = user;
-    req.userId = user._id;
-    next();
+    // Find challenges where user is a participant and challenge is active
+    const challenges = await Challenge.find({
+      'participants.user': req.userId,
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    }).sort({ startDate: 1 })
+      .populate('creator', 'username avatar');
+
+    res.json(challenges);
   } catch (error) {
-    res.status(401).json({ message: 'Authentication failed', error: error.message });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
-};
+});
+
+// @route   GET /api/challenges/user/completed
+// @desc    Get user's completed challenges
+// @access  Private
+router.get('/user/completed', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Find challenges where user is a participant and challenge is completed
+    const challenges = await Challenge.find({
+      'participants.user': req.userId,
+      endDate: { $lt: now }
+    }).sort({ endDate: -1 })
+      .populate('creator', 'username avatar');
+
+    res.json(challenges);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // @route   POST /api/challenges
 // @desc    Create a new challenge
@@ -138,104 +152,6 @@ router.get('/', auth, async (req, res) => {
       total,
       hasMore: total > parseInt(skip) + challenges.length
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// @route   GET /api/challenges/:id
-// @desc    Get a specific challenge
-// @access  Private
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const challenge = await Challenge.findById(req.params.id)
-      .populate('creator', 'username avatar')
-      .populate('participants.user', 'username avatar');
-
-    if (!challenge) {
-      return res.status(404).json({ message: 'Challenge not found' });
-    }
-
-    res.json(challenge);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// @route   PUT /api/challenges/:id
-// @desc    Update a challenge
-// @access  Private (creator only)
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const { title, description, category, tasks, isPublic } = req.body;
-
-    // Find challenge
-    const challenge = await Challenge.findById(req.params.id);
-
-    if (!challenge) {
-      return res.status(404).json({ message: 'Challenge not found' });
-    }
-
-    // Check if user is the creator
-    if (challenge.creator.toString() !== req.userId.toString()) {
-      return res.status(403).json({ message: 'Not authorized to update this challenge' });
-    }
-
-    // Check if challenge has already started
-    const now = new Date();
-    if (challenge.startDate < now) {
-      return res.status(400).json({ message: 'Cannot update a challenge that has already started' });
-    }
-
-    // Build update object
-    const updateFields = {};
-    if (title) updateFields.title = title;
-    if (description) updateFields.description = description;
-    if (category) updateFields.category = category;
-    if (tasks) updateFields.tasks = tasks;
-    if (isPublic !== undefined) updateFields.isPublic = isPublic;
-
-    // Update challenge
-    const updatedChallenge = await Challenge.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateFields },
-      { new: true }
-    ).populate('creator', 'username avatar')
-     .populate('participants.user', 'username avatar');
-
-    res.json(updatedChallenge);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// @route   DELETE /api/challenges/:id
-// @desc    Delete a challenge
-// @access  Private (creator only)
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    // Find challenge
-    const challenge = await Challenge.findById(req.params.id);
-
-    if (!challenge) {
-      return res.status(404).json({ message: 'Challenge not found' });
-    }
-
-    // Check if user is the creator
-    if (challenge.creator.toString() !== req.userId.toString()) {
-      return res.status(403).json({ message: 'Not authorized to delete this challenge' });
-    }
-
-    // Check if challenge has already started and has participants
-    const now = new Date();
-    if (challenge.startDate < now && challenge.participants.length > 1) {
-      return res.status(400).json({ message: 'Cannot delete an active challenge with participants' });
-    }
-
-    // Delete challenge
-    await Challenge.findByIdAndDelete(req.params.id);
-
-    res.json({ message: 'Challenge deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -476,42 +392,99 @@ router.post('/:id/task/:taskId/complete', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/challenges/user/active
-// @desc    Get user's active challenges
+// @route   GET /api/challenges/:id
+// @desc    Get a specific challenge
 // @access  Private
-router.get('/user/active', auth, async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
   try {
-    const now = new Date();
-    
-    // Find challenges where user is a participant and challenge is active
-    const challenges = await Challenge.find({
-      'participants.user': req.userId,
-      startDate: { $lte: now },
-      endDate: { $gte: now }
-    }).sort({ startDate: 1 })
-      .populate('creator', 'username avatar');
+    const challenge = await Challenge.findById(req.params.id)
+      .populate('creator', 'username avatar')
+      .populate('participants.user', 'username avatar');
 
-    res.json(challenges);
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    res.json(challenge);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// @route   GET /api/challenges/user/completed
-// @desc    Get user's completed challenges
-// @access  Private
-router.get('/user/completed', auth, async (req, res) => {
+// @route   PUT /api/challenges/:id
+// @desc    Update a challenge
+// @access  Private (creator only)
+router.put('/:id', auth, async (req, res) => {
   try {
-    const now = new Date();
-    
-    // Find challenges where user is a participant and challenge is completed
-    const challenges = await Challenge.find({
-      'participants.user': req.userId,
-      endDate: { $lt: now }
-    }).sort({ endDate: -1 })
-      .populate('creator', 'username avatar');
+    const { title, description, category, tasks, isPublic } = req.body;
 
-    res.json(challenges);
+    // Find challenge
+    const challenge = await Challenge.findById(req.params.id);
+
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    // Check if user is the creator
+    if (challenge.creator.toString() !== req.userId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to update this challenge' });
+    }
+
+    // Check if challenge has already started
+    const now = new Date();
+    if (challenge.startDate < now) {
+      return res.status(400).json({ message: 'Cannot update a challenge that has already started' });
+    }
+
+    // Build update object
+    const updateFields = {};
+    if (title) updateFields.title = title;
+    if (description) updateFields.description = description;
+    if (category) updateFields.category = category;
+    if (tasks) updateFields.tasks = tasks;
+    if (isPublic !== undefined) updateFields.isPublic = isPublic;
+
+    // Update challenge
+    const updatedChallenge = await Challenge.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateFields },
+      { new: true }
+    ).populate('creator', 'username avatar')
+     .populate('participants.user', 'username avatar');
+
+    res.json(updatedChallenge);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   DELETE /api/challenges/:id
+// @desc    Delete a challenge
+// @access  Private (creator only)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    // Find challenge
+    const challenge = await Challenge.findById(req.params.id);
+
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    // Check if user is the creator
+    if (challenge.creator.toString() !== req.userId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this challenge' });
+    }
+
+    // Check if challenge has already started and has participants
+    const now = new Date();
+    if (challenge.startDate < now && challenge.participants.length > 1) {
+      return res.status(400).json({ message: 'Cannot delete an active challenge with participants' });
+    }
+
+    // Delete challenge
+    await Challenge.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Challenge deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

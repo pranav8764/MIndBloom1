@@ -77,7 +77,7 @@ JournalEntrySchema.statics.getMoodAveragesByDay = async function(userId, startDa
   const result = await this.aggregate([
     {
       $match: {
-        user: mongoose.Types.ObjectId(userId),
+        user: new mongoose.Types.ObjectId(userId),
         date: {
           $gte: startDate,
           $lte: endDate
@@ -106,7 +106,8 @@ JournalEntrySchema.statics.getMostUsedTags = async function(userId, limit = 10) 
   const result = await this.aggregate([
     {
       $match: {
-        user: mongoose.Types.ObjectId(userId)
+        user: new mongoose.Types.ObjectId(userId),
+        tags: { $exists: true, $ne: [] }
       }
     },
     {

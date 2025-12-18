@@ -77,6 +77,10 @@ const AchievementSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  rewardClaimed: {
+    type: Boolean,
+    default: false
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -266,7 +270,51 @@ BadgeSchema.statics.createDefaultBadges = async function() {
   return [];
 };
 
+// Achievement Template Schema (for creating default achievements)
+const AchievementTemplateSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Template title is required'],
+    trim: true
+  },
+  description: {
+    type: String,
+    required: [true, 'Template description is required'],
+    trim: true
+  },
+  category: {
+    type: String,
+    enum: ['Streak', 'Journaling', 'Mindfulness', 'Challenges', 'Tracking', 'Habits', 'Social', 'Special'],
+    default: 'Special'
+  },
+  icon: {
+    type: String,
+    default: 'default-achievement.png'
+  },
+  targetValue: {
+    type: Number,
+    required: [true, 'Target value is required']
+  },
+  xpReward: {
+    type: Number,
+    default: 100
+  },
+  badgeUrl: {
+    type: String,
+    default: ''
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const Badge = mongoose.model('Badge', BadgeSchema);
 const Achievement = mongoose.model('Achievement', AchievementSchema);
+const AchievementTemplate = mongoose.model('AchievementTemplate', AchievementTemplateSchema);
 
-module.exports = { Badge, Achievement };
+module.exports = { Badge, Achievement, AchievementTemplate };

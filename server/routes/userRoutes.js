@@ -1,52 +1,60 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const auth = require('../middleware/auth');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { Achievement, Badge } = require('../models/Achievement');
+const auth = require("../middleware/auth");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const { Achievement, Badge } = require("../models/Achievement");
 
-
+// @route   GET /api/users/register
+// @desc    Test route for register
+// @access  Public
+router.get("/register", (req, res) => {
+  res.json({
+    message: "This is a POST endpoint. Use the frontend form to register.",
+  });
+});
 
 // @route   POST /api/users/register
 // @desc    Register a new user
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
+  console.log("Register route hit with body:", req.body);
   try {
     const { username, email, password, firstName, lastName } = req.body;
-    
+
     // Check if user already exists
     let user = await User.findOne({ $or: [{ email }, { username }] });
-    
+
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: "User already exists" });
     }
-    
+
     // Create new user
     user = new User({
       username,
       email,
       password,
       firstName,
-      lastName
+      lastName,
     });
-    
+
     // Save user to database
     await user.save();
-    
+
     // Create default achievements for the user
-    await Achievement.createDefaultAchievements(user._id);
-    
+    // await Achievement.createDefaultAchievements(user._id);
+
     // Create default badges if they don't exist
-    await Badge.createDefaultBadges();
-    
+    // await Badge.createDefaultBadges();
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
     );
-    
+
     // Return user data and token
     res.status(201).json({
       token,
@@ -58,42 +66,44 @@ router.post('/register', async (req, res) => {
         lastName: user.lastName,
         level: user.level,
         xp: user.xp,
-        streakDays: user.streakDays
-      }
+        streakDays: user.streakDays,
+      },
     });
+    console.log("User registered successfully:", user.username);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Registration error:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 // @route   POST /api/users/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     // Find user by email
-    const user = await User.findOne({ email }).select('+password');
-    
+    const user = await User.findOne({ email }).select("+password");
+
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
-    
+
     // Check password
     const isMatch = await user.comparePassword(password);
-    
+
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
-    
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
     );
-    
+
     // Return user data and token
     res.json({
       token,
@@ -105,113 +115,153 @@ router.post('/login', async (req, res) => {
         lastName: user.lastName,
         level: user.level,
         xp: user.xp,
-        streakDays: user.streakDays
-      }
+        streakDays: user.streakDays,
+      },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 // @route   GET /api/users/me
 // @desc    Get current user
 // @access  Private
-router.get('/me', auth, async (req, res) => {
+router.get("/me", auth, async (req, res) => {
   try {
     // Get user data without password
     const user = await User.findById(req.userId)
-      .select('-password')
-      .populate('achievements')
-      .populate('badges');
-    
+      .select("-password")
+      .populate("achievements")
+      .populate("badges");
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
-    
+
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 // @route   PUT /api/users/me
 // @desc    Update user profile
 // @access  Private
-router.put('/me', auth, async (req, res) => {
+router.put("/me", auth, async (req, res) => {
   try {
-    const { firstName, lastName, avatar } = req.body;
-    
+    const { firstName, lastName, username, email, avatar } = req.body;
+
     // Build update object
     const updateFields = {};
-    if (firstName) updateFields.firstName = firstName;
-    if (lastName) updateFields.lastName = lastName;
+    if (firstName !== undefined) updateFields.firstName = firstName;
+    if (lastName !== undefined) updateFields.lastName = lastName;
     if (avatar) updateFields.avatar = avatar;
-    
+
+    // Check if username is being updated and if it's taken
+    if (username) {
+      const existingUser = await User.findOne({
+        username,
+        _id: { $ne: req.userId },
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      updateFields.username = username;
+    }
+
+    // Check if email is being updated and if it's taken
+    if (email) {
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.userId },
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already taken" });
+      }
+      updateFields.email = email;
+    }
+
     // Update user
     const user = await User.findByIdAndUpdate(
       req.userId,
       { $set: updateFields },
       { new: true }
-    ).select('-password');
-    
-    res.json(user);
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      level: user.level,
+      xp: user.xp,
+      streakDays: user.streakDays,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 // @route   POST /api/users/check-in
 // @desc    Daily check-in to update streak
 // @access  Private
-router.post('/check-in', auth, async (req, res) => {
+router.post("/check-in", auth, async (req, res) => {
   try {
     // Update user streak
     const user = await req.user.updateStreak();
-    
+
     // Find streak-related achievements
     const streakAchievements = await Achievement.find({
       user: req.userId,
-      category: 'Streak',
-      isCompleted: false
+      category: "Streak",
+      isCompleted: false,
     });
-    
+
     // Update streak achievement progress
     for (const achievement of streakAchievements) {
-      if (achievement.title === 'Consistency Champion') {
+      if (achievement.title === "Consistency Champion") {
         await achievement.updateProgress(1);
       }
     }
-    
+
     res.json({
       streakDays: user.streakDays,
-      lastCheckIn: user.lastCheckIn
+      lastCheckIn: user.lastCheckIn,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// @route   GET /api/users/stats
+// @route   GET /api/auth/stats
 // @desc    Get user statistics
 // @access  Private
-router.get('/stats', auth, async (req, res) => {
+router.get("/stats", auth, async (req, res) => {
   try {
     // Get user data
     const user = await User.findById(req.userId);
-    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     // Get achievements stats
     const achievements = await Achievement.find({ user: req.userId });
-    const completedAchievements = achievements.filter(a => a.isCompleted);
-    
+    const completedAchievements = achievements.filter((a) => a.isCompleted);
+
     // Get badges
     const earnedBadges = await Badge.find({
-      _id: { $in: user.badges }
+      _id: { $in: user.badges },
     });
-    
+
     // Calculate XP needed for next level
     const xpForNextLevel = user.xpForNextLevel();
     const xpProgress = Math.round((user.xp / xpForNextLevel) * 100);
-    
+
     res.json({
       level: user.level,
       xp: user.xp,
@@ -220,10 +270,87 @@ router.get('/stats', auth, async (req, res) => {
       streakDays: user.streakDays,
       totalAchievements: achievements.length,
       completedAchievements: completedAchievements.length,
-      totalBadges: earnedBadges.length
+      totalBadges: earnedBadges.length,
+      totalJournalEntries: user.stats?.totalJournalEntries || 0,
+      completedChallenges: user.stats?.completedChallenges || 0,
+      challengesCreated: user.stats?.challengesCreated || 0,
+      challengesJoined: user.stats?.challengesJoined || 0,
+      tasksCompleted: user.stats?.tasksCompleted || 0,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// @route   GET /api/auth/level
+// @desc    Get user level information
+// @access  Private
+router.get("/level", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const nextLevelXp = user.xpForNextLevel();
+    const progress = Math.round((user.xp / nextLevelXp) * 100);
+
+    res.json({
+      currentLevel: user.level,
+      currentXp: user.xp,
+      nextLevelXp,
+      progress,
+      xpToNextLevel: nextLevelXp - user.xp,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+// @access  Private
+router.put("/profile", auth, async (req, res) => {
+  try {
+    const { firstName, lastName, username, email } = req.body;
+
+    // Check if username or email already exists (if being changed)
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (username && username !== user.username) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+    }
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+
+    // Build update object
+    const updateFields = {};
+    if (firstName !== undefined) updateFields.firstName = firstName;
+    if (lastName !== undefined) updateFields.lastName = lastName;
+    if (username !== undefined) updateFields.username = username;
+    if (email !== undefined) updateFields.email = email;
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updateFields },
+      { new: true }
+    ).select("-password");
+
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 

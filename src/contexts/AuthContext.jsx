@@ -7,7 +7,11 @@ const AuthContext = createContext(undefined);
 
 // Custom hook to use the auth context
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
 
 // Provider component
@@ -24,16 +28,16 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(user);
         
         // If a user exists but no achievements, initialize them
-        if (user && authService.isAuthenticated()) {
-          try {
-            await achievementService.initializeAchievements();
-          } catch (error) {
-            // Ignore error if achievements are already initialized
-            if (error.response && error.response.status !== 400) {
-              console.error('Error initializing achievements:', error);
-            }
-          }
-        }
+        // if (user && authService.isAuthenticated()) {
+        //   try {
+        //     await achievementService.initializeAchievements();
+        //   } catch (error) {
+        //     // Ignore error if achievements are already initialized
+        //     if (error.response && error.response.status !== 400) {
+        //       console.error('Error initializing achievements:', error);
+        //     }
+        //   }
+        // }
       } catch (error) {
         console.error('Error initializing user:', error);
         setError('Failed to initialize user');
@@ -70,11 +74,11 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(data.user);
       
       // Initialize achievements for new user
-      try {
-        await achievementService.initializeAchievements();
-      } catch (error) {
-        console.error('Error initializing achievements:', error);
-      }
+      // try {
+      //   await achievementService.initializeAchievements();
+      // } catch (error) {
+      //   console.error('Error initializing achievements:', error);
+      // }
       
       return data;
     } catch (error) {
