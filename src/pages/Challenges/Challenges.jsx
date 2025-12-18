@@ -6,7 +6,7 @@ const Challenges = () => {
   const [joinCode, setJoinCode] = useState('');
   
   // Mock data for challenges
-  const [publicChallenges, setPublicChallenges] = useState([
+  const [publicChallenges] = useState([
     {
       id: 1,
       title: '30 Days of Mindfulness',

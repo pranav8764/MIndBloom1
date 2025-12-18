@@ -10,7 +10,6 @@ const Journal = () => {
 
   // Journal entries fetched from API
   const [journalEntries, setJournalEntries] = useState([]);
-  const [loadingEntries, setLoadingEntries] = useState(true);
 
   // Fetch entries on mount
   useEffect(() => {
@@ -20,8 +19,6 @@ const Journal = () => {
         setJournalEntries(journalEntries);
       } catch (err) {
         console.error('Failed to fetch journal entries', err);
-      } finally {
-        setLoadingEntries(false);
       }
     };
     fetchEntries();
