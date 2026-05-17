@@ -99,8 +99,14 @@ router.get('/', auth, async (req, res) => {
       search
     } = req.query;
 
-    // Build query
-    const query = {};
+    // Build query with access control
+    const query = {
+      $or: [
+        { isPublic: true },
+        { creator: req.userId },
+        { 'participants.user': req.userId }
+      ]
+    };
     
     // Filter by category
     if (category) {
@@ -131,9 +137,13 @@ router.get('/', auth, async (req, res) => {
     
     // Search by title or description
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+      query.$and = [
+        {
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+          ]
+        }
       ];
     }
 
@@ -353,7 +363,7 @@ router.post('/:id/task/:taskId/complete', auth, async (req, res) => {
     await User.findByIdAndUpdate(req.userId, {
       $inc: { 
         'stats.tasksCompleted': 1,
-        'stats.xp': xpPerTask
+        'xp': xpPerTask
       }
     });
 
@@ -364,7 +374,7 @@ router.post('/:id/task/:taskId/complete', auth, async (req, res) => {
       // Award bonus XP for completing all tasks
       const bonusXp = 50;
       await User.findByIdAndUpdate(req.userId, {
-        $inc: { 'stats.xp': bonusXp, 'stats.challengesCompleted': 1 }
+        $inc: { 'xp': bonusXp, 'stats.completedChallenges': 1 }
       });
 
       // Update challenge achievements
@@ -403,6 +413,16 @@ router.get('/:id', auth, async (req, res) => {
 
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    // Check access control for private challenges
+    const isParticipant = challenge.participants.some(
+      p => p.user._id.toString() === req.userId.toString()
+    );
+    const isCreator = challenge.creator._id.toString() === req.userId.toString();
+    
+    if (!challenge.isPublic && !isCreator && !isParticipant) {
+      return res.status(403).json({ message: 'Access denied to this private challenge' });
     }
 
     res.json(challenge);

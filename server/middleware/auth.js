@@ -1,32 +1,89 @@
-const jwt = require('jsonwebtoken');
+// server/middleware/auth.js
+const { requireAuth } = require('@clerk/express');
+const { createClerkClient } = require('@clerk/clerk-sdk-node');
 const User = require('../models/User');
+const { Achievement } = require('../models/Achievement');
 
-/**
- * JWT authentication middleware.
- * Expects Authorization header in the form: `Bearer <token>`.
- * On success attaches `req.user` (full user doc) and `req.userId` (ObjectId) then calls `next()`.
- * On failure responds with 401.
- */
-module.exports = async function auth(req, res, next) {
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+
+// Middleware to ensure the user exists in MongoDB and attach req.userId
+const attachMongoUser = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ message: 'No authentication token, access denied' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId);
-
+    // req.auth is provided by clerkMiddleware and ensured by requireAuth()
+    const clerkId = req.auth.userId;
+    
+    let user = await User.findOne({ clerkId });
     if (!user) {
-      return res.status(401).json({ message: 'User not found, authentication failed' });
+      // First time we see this user, fetch their info from Clerk
+      const clerkUser = await clerkClient.users.getUser(clerkId);
+      const email = clerkUser.emailAddresses[0]?.emailAddress;
+      const username = clerkUser.username || email.split('@')[0];
+      const firstName = clerkUser.firstName || '';
+      const lastName = clerkUser.lastName || '';
+      
+      user = new User({
+        clerkId,
+        email,
+        username,
+        firstName,
+        lastName,
+      });
+      await user.save();
+      
+      // Initialize default achievements for new user
+      const defaultAchievements = [
+        {
+          title: 'First Steps',
+          description: 'Create your first journal entry',
+          category: 'Journaling',
+          target: 1,
+          user: user._id,
+          xpReward: 50
+        },
+        {
+          title: 'Consistency Champion',
+          description: 'Complete daily check-ins for 7 consecutive days',
+          category: 'Streak',
+          target: 7,
+          user: user._id,
+          xpReward: 200
+        },
+        {
+          title: 'Gratitude Guru',
+          description: 'Record 10 gratitude entries in your journal',
+          category: 'Journaling',
+          target: 10,
+          user: user._id,
+          xpReward: 150
+        },
+        {
+          title: 'Challenge Accepted',
+          description: 'Join your first challenge',
+          category: 'Challenges',
+          target: 1,
+          user: user._id,
+          xpReward: 100
+        },
+        {
+          title: 'Challenge Master',
+          description: 'Complete 3 challenges',
+          category: 'Challenges',
+          target: 3,
+          user: user._id,
+          xpReward: 300
+        }
+      ];
+      
+      await Achievement.insertMany(defaultAchievements);
     }
-
+    
     req.user = user;
-    req.userId = user._id;
+    req.userId = user._id; // Provide MongoDB ID for the rest of the app
     next();
   } catch (err) {
-    console.error('Auth middleware error:', err);
-    res.status(401).json({ message: 'Authentication failed', error: err.message });
+    console.error('Error syncing user:', err);
+    res.status(500).json({ message: 'Server error during authentication' });
   }
-}
+};
+
+module.exports = [requireAuth(), attachMongoUser];

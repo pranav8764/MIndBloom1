@@ -3,6 +3,7 @@ const express = require("express");
 const http = require("http");
 const { connect } = require("mongoose");
 const cors = require("cors");
+const { clerkMiddleware } = require("@clerk/express");
 
 // Import routes
 const userRoutes = require("./routes/userRoutes");
@@ -28,6 +29,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(clerkMiddleware());
 
 // Connect to MongoDB - Use MONGODB_URI from environment
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
@@ -74,7 +76,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Socket.io initialized`);
