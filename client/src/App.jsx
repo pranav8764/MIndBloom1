@@ -14,17 +14,38 @@ import Register from './pages/Register/Register'
 import Login from './pages/Login/Login'
 import Profile from './pages/Profile/Profile'
 
+import { useAuth } from './contexts/AuthContext'
+
+// Protected Route wrapper component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh', fontSize: '1.2rem', color: '#666' }}>
+        Loading...
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="journal" element={<Journal />} />
-          <Route path="challenges" element={<Challenges />} />
-          <Route path="achievements" element={<Achievements />} />
-          <Route path="profile" element={<Profile />} />
+          <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+          <Route path="challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
+          <Route path="achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+          <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           {/* Redirect to home for any undefined routes */}

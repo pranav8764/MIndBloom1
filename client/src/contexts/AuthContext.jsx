@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
-import { userService, achievementService } from '../services/apiService';
+import { userService, achievementService, api } from '../services/apiService';
 
 const AuthContext = createContext(undefined);
 
@@ -19,6 +19,32 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Dynamic token interceptor to ensure fresh Clerk token before every API request
+  useEffect(() => {
+    const interceptor = api.interceptors.request.use(
+      async (config) => {
+        try {
+          if (isSignedIn) {
+            const token = await getToken();
+            if (token) {
+              config.headers["Authorization"] = `Bearer ${token}`;
+              localStorage.setItem('clerk_token', token); // fallback for legacy code
+            }
+          }
+        } catch (err) {
+          console.error("Error setting dynamic auth token:", err);
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    return () => {
+      api.interceptors.request.eject(interceptor);
+    };
+  }, [isSignedIn, getToken]);
+
 
   useEffect(() => {
     const syncUser = async () => {

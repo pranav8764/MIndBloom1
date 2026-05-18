@@ -1,159 +1,83 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Achievements.css';
+import { achievementService } from '../../services/apiService';
 
 const Achievements = () => {
   const [activeTab, setActiveTab] = useState('badges');
-  
-  // Mock data for achievements and badges
-  const achievements = [
-    {
-      id: 1,
-      title: 'Consistency Champion',
-      description: 'Complete daily check-ins for 30 consecutive days',
-      progress: 22,
-      total: 30,
-      category: 'Streak',
-      icon: 'streak-icon',
-      xp: 500
-    },
-    {
-      id: 2,
-      title: 'Gratitude Guru',
-      description: 'Record 50 gratitude entries in your journal',
-      progress: 35,
-      total: 50,
-      category: 'Journaling',
-      icon: 'journal-icon',
-      xp: 300
-    },
-    {
-      id: 3,
-      title: 'Meditation Master',
-      description: 'Complete 20 meditation sessions',
-      progress: 8,
-      total: 20,
-      category: 'Mindfulness',
-      icon: 'meditation-icon',
-      xp: 250
-    },
-    {
-      id: 4,
-      title: 'Challenge Conqueror',
-      description: 'Complete 5 wellness challenges',
-      progress: 2,
-      total: 5,
-      category: 'Challenges',
-      icon: 'challenge-icon',
-      xp: 400
-    },
-    {
-      id: 5,
-      title: 'Mood Tracker',
-      description: 'Track your mood for 60 days',
-      progress: 42,
-      total: 60,
-      category: 'Tracking',
-      icon: 'mood-icon',
-      xp: 350
+  const [achievements, setAchievements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch real achievements from backend
+  const fetchAchievements = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await achievementService.getAchievements();
+      setAchievements(data || []);
+    } catch (err) {
+      console.error('Error fetching achievements:', err);
+      setError('Failed to load achievements. Please make sure the backend is running.');
+    } finally {
+      setLoading(false);
     }
-  ];
-  
-  const badges = [
-    {
-      id: 101,
-      title: 'Early Bird',
-      description: 'Earned for completing 5 morning check-ins before 8 AM',
-      earned: true,
-      dateEarned: '2023-06-15',
-      category: 'Habits',
-      icon: 'early-bird-icon',
-      rarity: 'Common',
-      xp: 100
-    },
-    {
-      id: 102,
-      title: 'Week Warrior',
-      description: 'Earned for maintaining a 7-day streak',
-      earned: true,
-      dateEarned: '2023-06-22',
-      category: 'Streak',
-      icon: 'streak-icon',
-      rarity: 'Common',
-      xp: 150
-    },
-    {
-      id: 103,
-      title: 'Mindfulness Novice',
-      description: 'Earned for completing 10 meditation sessions',
-      earned: false,
-      category: 'Mindfulness',
-      icon: 'meditation-icon',
-      rarity: 'Uncommon',
-      xp: 200
-    },
-    {
-      id: 104,
-      title: 'Gratitude Starter',
-      description: 'Earned for recording 20 gratitude entries',
-      earned: true,
-      dateEarned: '2023-07-05',
-      category: 'Journaling',
-      icon: 'journal-icon',
-      rarity: 'Common',
-      xp: 100
-    },
-    {
-      id: 105,
-      title: 'Social Butterfly',
-      description: 'Earned for joining 3 group challenges',
-      earned: false,
-      category: 'Challenges',
-      icon: 'social-icon',
-      rarity: 'Uncommon',
-      xp: 200
-    },
-    {
-      id: 106,
-      title: 'Reflection Master',
-      description: 'Earned for writing 30 journal entries',
-      earned: true,
-      dateEarned: '2023-07-01',
-      category: 'Journaling',
-      icon: 'journal-icon',
-      rarity: 'Rare',
-      xp: 300
-    },
-    {
-      id: 107,
-      title: 'Mood Tracker',
-      description: 'Earned for tracking your mood for 30 consecutive days',
-      earned: false,
-      category: 'Tracking',
-      icon: 'mood-icon',
-      rarity: 'Uncommon',
-      xp: 200
-    },
-    {
-      id: 108,
-      title: 'Challenge Champion',
-      description: 'Earned for completing 3 wellness challenges',
-      earned: false,
-      category: 'Challenges',
-      icon: 'challenge-icon',
-      rarity: 'Rare',
-      xp: 300
+  };
+
+  useEffect(() => {
+    fetchAchievements();
+  }, []);
+
+  const getBadgeIcon = (category) => {
+    switch (category?.toLowerCase()) {
+      case 'streak': return 'streak-icon';
+      case 'journaling': return 'journal-icon';
+      case 'mindfulness': return 'meditation-icon';
+      case 'challenges': return 'challenge-icon';
+      case 'tracking': return 'mood-icon';
+      case 'social': return 'social-icon';
+      case 'habits': return 'early-bird-icon';
+      default: return 'journal-icon';
     }
-  ];
+  };
+
+  const getRarity = (xpReward) => {
+    if (xpReward >= 300) return 'Rare';
+    if (xpReward >= 200) return 'Uncommon';
+    return 'Common';
+  };
+
+  // Splitting achievements
+  const completedBadges = achievements.filter(ach => ach.isCompleted);
+  const inProgressAchievements = achievements.filter(ach => !ach.isCompleted);
   
-  // Calculate total XP
-  const earnedBadges = badges.filter(badge => badge.earned);
-  const totalXP = earnedBadges.reduce((sum, badge) => sum + badge.xp, 0);
+  // Calculate total XP based on completed badges
+  const totalXP = completedBadges.reduce((sum, badge) => sum + badge.xpReward, 0);
   
   // Calculate completion percentage for achievements
   const calculateProgress = (current, total) => {
     return Math.round((current / total) * 100);
   };
-  
+
+  if (loading) {
+    return (
+      <div className="achievements-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <div className="loading-container" style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: '1.2rem', color: '#666' }}>Loading achievements data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="achievements-page" style={{ padding: '40px 20px', textAlign: 'center' }}>
+        <div className="error-message" style={{ color: '#d9534f', fontSize: '1.1rem', background: '#fdf7f7', padding: '15px', borderRadius: '8px', border: '1px solid #ebccd1', display: 'inline-block' }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="achievements-page">
       <div className="achievements-header">
@@ -164,10 +88,10 @@ const Achievements = () => {
       <div className="xp-summary">
         <div className="xp-card">
           <div className="xp-value">{totalXP} XP</div>
-          <div className="xp-label">Total Experience Points</div>
+          <div className="xp-label">Total Experience Points from Unlocked Badges</div>
           <div className="badges-summary">
-            <span>{earnedBadges.length} badges earned</span>
-            <span>{badges.length - earnedBadges.length} badges to unlock</span>
+            <span>{completedBadges.length} badges earned</span>
+            <span>{inProgressAchievements.length} badges to unlock</span>
           </div>
         </div>
       </div>
@@ -183,77 +107,101 @@ const Achievements = () => {
           className={`tab-button ${activeTab === 'in-progress' ? 'active' : ''}`}
           onClick={() => setActiveTab('in-progress')}
         >
-          In Progress
+          In Progress ({inProgressAchievements.length})
         </button>
       </div>
       
       {activeTab === 'badges' && (
         <div className="achievements-content">
-          <div className="badges-grid">
-            {badges.map(badge => (
-              <div 
-                className={`badge-card ${badge.earned ? 'earned' : 'locked'}`} 
-                key={badge.id}
-              >
-                <div className={`badge-icon ${badge.icon} ${badge.rarity.toLowerCase()}`}>
-                  {!badge.earned && <div className="lock-overlay"></div>}
-                </div>
-                <div className="badge-info">
-                  <h3 className="badge-title">{badge.title}</h3>
-                  <p className="badge-description">{badge.description}</p>
-                  <div className="badge-meta">
-                    <span className={`badge-rarity ${badge.rarity.toLowerCase()}`}>
-                      {badge.rarity}
-                    </span>
-                    <span className="badge-xp">+{badge.xp} XP</span>
-                  </div>
-                  {badge.earned && (
-                    <div className="badge-earned-date">
-                      Earned on {badge.dateEarned}
+          {achievements.length > 0 ? (
+            <div className="badges-grid">
+              {achievements.map(badge => {
+                const rarity = getRarity(badge.xpReward);
+                const icon = getBadgeIcon(badge.category);
+                return (
+                  <div 
+                    className={`badge-card ${badge.isCompleted ? 'earned' : 'locked'}`} 
+                    key={badge._id}
+                  >
+                    <div className={`badge-icon ${icon} ${rarity.toLowerCase()}`}>
+                      {!badge.isCompleted && <div className="lock-overlay"></div>}
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className="badge-info">
+                      <h3 className="badge-title">{badge.title}</h3>
+                      <p className="badge-description">{badge.description}</p>
+                      <div className="badge-meta">
+                        <span className={`badge-rarity ${rarity.toLowerCase()}`}>
+                          {rarity}
+                        </span>
+                        <span className="badge-xp">+{badge.xpReward} XP</span>
+                      </div>
+                      {badge.isCompleted && (
+                        <div className="badge-earned-date">
+                          Earned on {new Date(badge.completedDate || badge.updatedAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="no-entries" style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
+              <p>No achievements found. Please make sure you are registered and logged in.</p>
+            </div>
+          )}
         </div>
       )}
       
       {activeTab === 'in-progress' && (
         <div className="achievements-content">
-          <div className="achievements-grid">
-            {achievements.map(achievement => (
-              <div className="achievement-card" key={achievement.id}>
-                <div className="achievement-header">
-                  <div className={`achievement-icon ${achievement.icon}`}></div>
-                  <div className="achievement-title-container">
-                    <h3 className="achievement-title">{achievement.title}</h3>
-                    <span className="achievement-category">{achievement.category}</span>
+          {inProgressAchievements.length > 0 ? (
+            <div className="achievements-grid">
+              {inProgressAchievements.map(achievement => {
+                const icon = getBadgeIcon(achievement.category);
+                const progressPercent = calculateProgress(achievement.currentProgress, achievement.target);
+                return (
+                  <div className="achievement-card" key={achievement._id}>
+                    <div className="achievement-header">
+                      <div className={`achievement-icon ${icon}`}></div>
+                      <div className="achievement-title-container">
+                        <h3 className="achievement-title">{achievement.title}</h3>
+                        <span className="achievement-category">{achievement.category}</span>
+                      </div>
+                    </div>
+                    
+                    <p className="achievement-description">{achievement.description}</p>
+                    
+                    <div className="achievement-progress">
+                      <div className="progress-label">
+                        <span>Progress</span>
+                        <span>{achievement.currentProgress}/{achievement.target}</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${progressPercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="achievement-reward">
+                      <span className="reward-label">Reward:</span>
+                      <span className="reward-value">{achievement.xpReward} XP</span>
+                    </div>
                   </div>
-                </div>
-                
-                <p className="achievement-description">{achievement.description}</p>
-                
-                <div className="achievement-progress">
-                  <div className="progress-label">
-                    <span>Progress</span>
-                    <span>{achievement.progress}/{achievement.total}</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
-                      style={{ width: `${calculateProgress(achievement.progress, achievement.total)}%` }}
-                    ></div>
-                  </div>
-                </div>
-                
-                <div className="achievement-reward">
-                  <span className="reward-label">Reward:</span>
-                  <span className="reward-value">{achievement.xp} XP</span>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="no-entries" style={{ textAlign: 'center', padding: '40px 20px', color: '#666' }}>
+              <p>Amazing! You have completed all available achievements! 🏆</p>
+            </div>
+          )}
         </div>
       )}
     </div>
