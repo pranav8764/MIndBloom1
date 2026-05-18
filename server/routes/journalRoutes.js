@@ -10,7 +10,7 @@ const { Achievement } = require("../models/Achievement");
 // @access  Private
 router.post("/", auth, async (req, res) => {
   try {
-    const { mood, content, prompt, tags, gratitude, activities } = req.body;
+    const { mood, content, prompt, tags, gratitude, activities, isPrivate } = req.body;
 
     // Create new journal entry
     const journalEntry = new JournalEntry({
@@ -21,6 +21,7 @@ router.post("/", auth, async (req, res) => {
       tags,
       gratitude,
       activities,
+      isPrivate: isPrivate !== undefined ? isPrivate : false,
     });
 
     // Save journal entry
@@ -35,6 +36,9 @@ router.post("/", auth, async (req, res) => {
 
     // Update achievement progress
     for (const achievement of journalingAchievements) {
+      if (achievement.title === "First Steps") {
+        await achievement.updateProgress(1);
+      }
       if (
         achievement.title === "Gratitude Guru" &&
         gratitude &&
@@ -43,6 +47,11 @@ router.post("/", auth, async (req, res) => {
         await achievement.updateProgress(gratitude.length);
       }
     }
+
+    // Increment user stats for total journal entries
+    await User.findByIdAndUpdate(req.userId, {
+      $inc: { "stats.totalJournalEntries": 1 },
+    });
 
     // Get streak info
     const streakInfo = await JournalEntry.getStreakInfo(req.userId);
@@ -118,7 +127,7 @@ router.get("/:id", auth, async (req, res) => {
 // @access  Private
 router.put("/:id", auth, async (req, res) => {
   try {
-    const { mood, content, prompt, tags, gratitude, activities } = req.body;
+    const { mood, content, prompt, tags, gratitude, activities, isPrivate } = req.body;
 
     // Build update object
     const updateFields = {};
@@ -128,6 +137,7 @@ router.put("/:id", auth, async (req, res) => {
     if (tags) updateFields.tags = tags;
     if (gratitude) updateFields.gratitude = gratitude;
     if (activities) updateFields.activities = activities;
+    if (isPrivate !== undefined) updateFields.isPrivate = isPrivate;
 
     // Update journal entry
     const journalEntry = await JournalEntry.findOneAndUpdate(

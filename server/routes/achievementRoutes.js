@@ -45,7 +45,7 @@ router.get('/stats', auth, async (req, res) => {
     const recentlyCompleted = await Achievement.find({
       user: req.userId,
       isCompleted: true
-    }).sort({ completedAt: -1 }).limit(5);
+    }).sort({ completedDate: -1 }).limit(5);
     
     res.json({
       totalAchievements,
@@ -70,7 +70,7 @@ router.get('/recent', auth, async (req, res) => {
     const recentAchievements = await Achievement.find({
       user: req.userId,
       isCompleted: true
-    }).sort({ completedAt: -1 }).limit(parseInt(limit));
+    }).sort({ completedDate: -1 }).limit(parseInt(limit));
     
     res.json(recentAchievements);
   } catch (error) {

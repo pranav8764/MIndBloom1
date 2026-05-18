@@ -3,6 +3,7 @@ const router = express.Router();
 const Habit = require('../models/Habit');
 const XPLog = require('../models/XPLog');
 const { Achievement } = require('../models/Achievement');
+const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 // Import centralized auth middleware
@@ -40,7 +41,13 @@ router.put('/:id/complete', auth, async (req, res) => {
 
     // log XP (example value 10)
     await XPLog.create({ user: req.userId, action: 'habit', points: 10 });
-    // TODO: update user XP and check achievements
+    
+    // Award XP to user
+    await User.findByIdAndUpdate(req.userId, { $inc: { xp: 10 } });
+    
+    // Fetch user and check for level up
+    const user = await User.findById(req.userId);
+    await user.checkLevelUp();
 
     res.json(habit);
   } catch (err) {

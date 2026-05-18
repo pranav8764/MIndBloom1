@@ -9,6 +9,11 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     minlength: [3, 'Username must be at least 3 characters']
   },
+  clerkId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -19,7 +24,6 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
     select: false // Don't return password in queries by default
   },
@@ -123,6 +127,25 @@ UserSchema.methods.addXP = function(amount) {
   }
   
   return this.save();
+};
+
+// Method to check and handle level ups
+UserSchema.methods.checkLevelUp = async function() {
+  let xpNeeded = this.xpForNextLevel();
+  let leveledUp = false;
+  
+  while (this.xp >= xpNeeded) {
+    this.level += 1;
+    this.xp -= xpNeeded;
+    xpNeeded = this.xpForNextLevel();
+    leveledUp = true;
+  }
+  
+  if (leveledUp) {
+    await this.save();
+  }
+  
+  return leveledUp;
 };
 
 // Method to update streak

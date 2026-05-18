@@ -1,64 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Challenges.css';
+import { challengeService } from '../../services/apiService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Challenges = () => {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('explore');
   const [joinCode, setJoinCode] = useState('');
   
-  // Mock data for challenges
-  const [publicChallenges] = useState([
-    {
-      id: 1,
-      title: '30 Days of Mindfulness',
-      description: 'Practice mindfulness for at least 10 minutes every day for 30 days.',
-      participants: 245,
-      category: 'Meditation',
-      difficulty: 'Beginner',
-      duration: '30 days',
-      startDate: '2023-07-15',
-      creator: 'MindBloom Team'
-    },
-    {
-      id: 2,
-      title: 'Morning Routine Builder',
-      description: 'Establish a consistent morning routine to start your day with intention and energy.',
-      participants: 189,
-      category: 'Habits',
-      difficulty: 'Intermediate',
-      duration: '21 days',
-      startDate: '2023-07-20',
-      creator: 'MindBloom Team'
-    },
-    {
-      id: 3,
-      title: 'Gratitude Journal Challenge',
-      description: "Write down three things you're grateful for every day for two weeks.",
-      participants: 312,
-      category: 'Journaling',
-      difficulty: 'Beginner',
-      duration: '14 days',
-      startDate: '2023-07-10',
-      creator: 'MindBloom Team'
-    }
-  ]);
-  
-  const [myChallenges, setMyChallenges] = useState([
-    {
-      id: 101,
-      title: 'Digital Detox Weekend',
-      description: 'Reduce screen time and be more present during weekends.',
-      participants: 8,
-      category: 'Habits',
-      difficulty: 'Intermediate',
-      duration: '4 weekends',
-      startDate: '2023-07-08',
-      creator: 'Alex J.',
-      progress: 50,
-      isPrivate: true
-    }
-  ]);
-  
-  // Challenge categories for filtering
+  // State for real challenges
+  const [publicChallenges, setPublicChallenges] = useState([]);
+  const [myChallenges, setMyChallenges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filters state
+  const [categoryFilter, setCategoryFilter] = useState('all-categories');
+  const [difficultyFilter, setDifficultyFilter] = useState('all');
+  const [durationFilter, setDurationFilter] = useState('all');
+
+  // New challenge form state
+  const [newChallenge, setNewChallenge] = useState({
+    title: '',
+    description: '',
+    category: 'Meditation',
+    difficulty: 'Beginner',
+    duration: 7,
+    startDate: new Date().toISOString().split('T')[0],
+    isPublic: true,
+    tasks: [{ name: '', description: '', duration: 10 }]
+  });
+
+  // Challenge categories for filtering/creation
   const categories = [
     'All Categories',
     'Meditation',
@@ -67,65 +40,240 @@ const Challenges = () => {
     'Habits',
     'Sleep',
     'Nutrition',
-    'Social'
+    'Social',
+    'Other'
   ];
-  
+
+  // Fetch all challenges from backend
+  const fetchChallenges = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const publicData = await challengeService.getChallenges();
+      const activeData = await challengeService.getActiveUserChallenges();
+      setPublicChallenges(publicData.challenges || []);
+      setMyChallenges(activeData || []);
+    } catch (err) {
+      console.error('Error fetching challenges:', err);
+      setError('Failed to load challenges. Please make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChallenges();
+  }, []);
+
   // Handle joining a challenge
-  const handleJoinChallenge = (challengeId) => {
-    // In a real app, this would make an API call to join the challenge
-    const challengeToJoin = publicChallenges.find(challenge => challenge.id === challengeId);
-    
-    if (challengeToJoin) {
-      // Add to my challenges with 0% progress
-      const newChallenge = {
-        ...challengeToJoin,
-        progress: 0,
-        isPrivate: false
-      };
-      
-      setMyChallenges([...myChallenges, newChallenge]);
-      alert(`You've joined the "${challengeToJoin.title}" challenge!`);
+  const handleJoinChallenge = async (challengeId) => {
+    try {
+      setError(null);
+      await challengeService.joinChallenge(challengeId);
+      alert("You've successfully joined the challenge!");
+      await fetchChallenges();
+      setActiveTab('my-challenges');
+    } catch (err) {
+      console.error('Error joining challenge:', err);
+      alert(err.response?.data?.message || 'Failed to join challenge. Please try again.');
     }
   };
   
   // Handle joining a private challenge with a code
-  const handleJoinPrivate = (e) => {
+  const handleJoinPrivate = async (e) => {
     e.preventDefault();
-    
-    if (joinCode.trim() === '') {
+    if (!joinCode.trim()) {
       alert('Please enter a valid join code');
       return;
     }
     
-    // In a real app, this would validate the code against an API
-    if (joinCode === 'FRIEND123') {
-      const newPrivateChallenge = {
-        id: 102,
-        title: 'Friend Group Fitness',
-        description: 'Exercise at least 3 times a week with accountability from friends.',
-        participants: 5,
-        category: 'Exercise',
-        difficulty: 'Intermediate',
-        duration: '8 weeks',
-        startDate: '2023-07-12',
-        creator: 'Jamie S.',
-        progress: 0,
-        isPrivate: true
-      };
-      
-      setMyChallenges([...myChallenges, newPrivateChallenge]);
-      setJoinCode('');
+    try {
+      setError(null);
+      await challengeService.joinChallenge(joinCode.trim().toUpperCase());
       alert("You've successfully joined the private challenge!");
-    } else {
-      alert('Invalid join code. Please check and try again.');
+      setJoinCode('');
+      await fetchChallenges();
+      setActiveTab('my-challenges');
+    } catch (err) {
+      console.error('Error joining private challenge:', err);
+      alert(err.response?.data?.message || 'Invalid join code. Please check and try again.');
     }
   };
   
   // Handle creating a new challenge
-  const handleCreateChallenge = () => {
-    // In a real app, this would open a form or navigate to a create challenge page
-    alert('This would open a challenge creation form in the full application.');
+  const handleCreateChallenge = async (e) => {
+    e.preventDefault();
+    
+    if (!newChallenge.title.trim()) {
+      alert('Please enter a challenge title');
+      return;
+    }
+    if (!newChallenge.description.trim()) {
+      alert('Please enter a challenge description');
+      return;
+    }
+    
+    const validTasks = newChallenge.tasks.filter(t => t.name.trim());
+    if (validTasks.length === 0) {
+      alert('Please add at least one task to the challenge');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const start = new Date(newChallenge.startDate);
+      const end = new Date(start.getTime() + parseInt(newChallenge.duration) * 24 * 60 * 60 * 1000);
+      
+      const payload = {
+        title: newChallenge.title,
+        description: newChallenge.description,
+        category: newChallenge.category,
+        difficulty: newChallenge.difficulty,
+        duration: parseInt(newChallenge.duration),
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        isPublic: newChallenge.isPublic,
+        tasks: validTasks
+      };
+      
+      await challengeService.createChallenge(payload);
+      alert('Challenge created successfully!');
+      
+      // Reset form
+      setNewChallenge({
+        title: '',
+        description: '',
+        category: 'Meditation',
+        difficulty: 'Beginner',
+        duration: 7,
+        startDate: new Date().toISOString().split('T')[0],
+        isPublic: true,
+        tasks: [{ name: '', description: '', duration: 10 }]
+      });
+      
+      await fetchChallenges();
+      setActiveTab('my-challenges');
+    } catch (err) {
+      console.error('Error creating challenge:', err);
+      setError(err.response?.data?.message || 'Failed to create challenge. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleTaskChange = (index, field, value) => {
+    const updatedTasks = [...newChallenge.tasks];
+    updatedTasks[index][field] = value;
+    setNewChallenge({ ...newChallenge, tasks: updatedTasks });
+  };
+
+  const addEmptyTask = () => {
+    setNewChallenge({
+      ...newChallenge,
+      tasks: [...newChallenge.tasks, { name: '', description: '', duration: 10 }]
+    });
+  };
+
+  const removeTaskField = (index) => {
+    if (newChallenge.tasks.length === 1) return;
+    const updatedTasks = newChallenge.tasks.filter((_, i) => i !== index);
+    setNewChallenge({ ...newChallenge, tasks: updatedTasks });
+  };
+
+  // Check in for a challenge task (completing the first incomplete task)
+  const handleCheckInChallenge = async (challenge) => {
+    try {
+      const userId = currentUser?._id || currentUser?.id;
+      if (!userId) return;
+
+      const participant = challenge.participants?.find(
+        p => (p.user?._id || p.user || '').toString() === userId.toString()
+      );
+
+      if (!participant) return;
+
+      let taskToComplete = null;
+
+      // In the legacy progress array, find the first incomplete task
+      if (Array.isArray(participant.progress)) {
+        const incomplete = participant.progress.find(p => !p.isCompleted);
+        if (incomplete) {
+          taskToComplete = challenge.tasks?.find(t => t._id === incomplete.taskId);
+        }
+      } else {
+        // Fallback or post-schema progress number check in:
+        // just complete the first task
+        taskToComplete = challenge.tasks?.[0];
+      }
+
+      if (!taskToComplete) {
+        alert('All tasks in this challenge are already completed today!');
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      await challengeService.completeTask(challenge._id, taskToComplete._id);
+      alert(`Completed task: "${taskToComplete.name}"! +10 XP`);
+      await fetchChallenges();
+    } catch (err) {
+      console.error('Error completing task:', err);
+      alert(err.response?.data?.message || 'Failed to complete task. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Safe progress calculator
+  const getProgressPercentage = (challenge) => {
+    const userId = currentUser?._id || currentUser?.id;
+    if (!challenge || !userId) return 0;
+    
+    const participant = challenge.participants?.find(
+      p => (p.user?._id || p.user || '').toString() === userId.toString()
+    );
+    
+    if (!participant) return 0;
+    
+    if (typeof participant.progress === 'number') {
+      return participant.progress;
+    }
+    
+    if (Array.isArray(participant.progress)) {
+      const completed = participant.progress.filter(p => p.isCompleted).length;
+      const total = challenge.tasks?.length || 1;
+      return Math.round((completed / total) * 100);
+    }
+    
+    return 0;
+  };
+
+  // Client-side filtering of explore challenges
+  const filteredChallenges = publicChallenges.filter(challenge => {
+    if (categoryFilter !== 'all-categories') {
+      const mappedCat = categoryFilter.replace('-', ' ');
+      if (challenge.category?.toLowerCase() !== mappedCat.toLowerCase()) {
+        return false;
+      }
+    }
+    
+    if (difficultyFilter !== 'all') {
+      if (challenge.difficulty?.toLowerCase() !== difficultyFilter.toLowerCase()) {
+        return false;
+      }
+    }
+    
+    if (durationFilter !== 'all') {
+      const days = parseInt(challenge.duration);
+      if (durationFilter === 'short' && (isNaN(days) || days > 7)) return false;
+      if (durationFilter === 'medium' && (isNaN(days) || days <= 7 || days > 28)) return false;
+      if (durationFilter === 'long' && (isNaN(days) || days <= 28)) return false;
+    }
+    
+    return true;
+  });
   
   return (
     <div className="challenges-page">
@@ -154,13 +302,25 @@ const Challenges = () => {
           Create Challenge
         </button>
       </div>
+
+      {error && <div className="error-message">{error}</div>}
       
-      {activeTab === 'explore' && (
+      {loading && (
+        <div className="loading-container">
+          <p>Loading challenges data...</p>
+        </div>
+      )}
+      
+      {!loading && activeTab === 'explore' && (
         <div className="challenges-content">
           <div className="challenges-filters">
             <div className="filter-group">
               <label>Category:</label>
-              <select className="filter-select">
+              <select 
+                className="filter-select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
                 {categories.map((category, index) => (
                   <option key={index} value={category.toLowerCase().replace(' ', '-')}>
                     {category}
@@ -171,7 +331,11 @@ const Challenges = () => {
             
             <div className="filter-group">
               <label>Difficulty:</label>
-              <select className="filter-select">
+              <select 
+                className="filter-select"
+                value={difficultyFilter}
+                onChange={(e) => setDifficultyFilter(e.target.value)}
+              >
                 <option value="all">All Levels</option>
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
@@ -181,7 +345,11 @@ const Challenges = () => {
             
             <div className="filter-group">
               <label>Duration:</label>
-              <select className="filter-select">
+              <select 
+                className="filter-select"
+                value={durationFilter}
+                onChange={(e) => setDurationFilter(e.target.value)}
+              >
                 <option value="all">Any Duration</option>
                 <option value="short">Short (1-7 days)</option>
                 <option value="medium">Medium (1-4 weeks)</option>
@@ -194,7 +362,7 @@ const Challenges = () => {
             <form onSubmit={handleJoinPrivate} className="join-private-form">
               <input 
                 type="text" 
-                placeholder="Enter private challenge code" 
+                placeholder="Enter private challenge code (e.g. ABCDEFGH)" 
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 className="join-code-input"
@@ -203,91 +371,108 @@ const Challenges = () => {
             </form>
           </div>
           
-          <div className="challenges-grid">
-            {publicChallenges.map(challenge => (
-              <div className="challenge-card" key={challenge.id}>
-                <div className="challenge-category">{challenge.category}</div>
-                <h3 className="challenge-title">{challenge.title}</h3>
-                <p className="challenge-description">{challenge.description}</p>
-                
-                <div className="challenge-details">
-                  <div className="challenge-detail">
-                    <span className="detail-label">Difficulty:</span>
-                    <span className="detail-value">{challenge.difficulty}</span>
-                  </div>
-                  <div className="challenge-detail">
-                    <span className="detail-label">Duration:</span>
-                    <span className="detail-value">{challenge.duration}</span>
-                  </div>
-                  <div className="challenge-detail">
-                    <span className="detail-label">Starts:</span>
-                    <span className="detail-value">{challenge.startDate}</span>
-                  </div>
-                  <div className="challenge-detail">
-                    <span className="detail-label">Participants:</span>
-                    <span className="detail-value">{challenge.participants}</span>
-                  </div>
-                </div>
-                
-                <div className="challenge-actions">
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => handleJoinChallenge(challenge.id)}
-                  >
-                    Join Challenge
-                  </button>
-                  <button className="btn btn-text">Learn More</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {activeTab === 'my-challenges' && (
-        <div className="challenges-content">
-          {myChallenges.length > 0 ? (
-            <div className="my-challenges-grid">
-              {myChallenges.map(challenge => (
-                <div className="my-challenge-card" key={challenge.id}>
-                  <div className="challenge-header">
-                    <div className="challenge-category">{challenge.category}</div>
-                    {challenge.isPrivate && <div className="private-badge">Private</div>}
-                  </div>
-                  
+          {filteredChallenges.length > 0 ? (
+            <div className="challenges-grid">
+              {filteredChallenges.map(challenge => (
+                <div className="challenge-card" key={challenge._id}>
+                  <div className="challenge-category">{challenge.category}</div>
                   <h3 className="challenge-title">{challenge.title}</h3>
                   <p className="challenge-description">{challenge.description}</p>
                   
-                  <div className="challenge-progress">
-                    <div className="progress-label">
-                      <span>Progress</span>
-                      <span>{challenge.progress}%</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill" 
-                        style={{ width: `${challenge.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
                   <div className="challenge-details">
                     <div className="challenge-detail">
+                      <span className="detail-label">Difficulty:</span>
+                      <span className="detail-value">{challenge.difficulty || 'Beginner'}</span>
+                    </div>
+                    <div className="challenge-detail">
                       <span className="detail-label">Duration:</span>
-                      <span className="detail-value">{challenge.duration}</span>
+                      <span className="detail-value">{challenge.duration} days</span>
+                    </div>
+                    <div className="challenge-detail">
+                      <span className="detail-label">Starts:</span>
+                      <span className="detail-value">{new Date(challenge.startDate).toLocaleDateString()}</span>
                     </div>
                     <div className="challenge-detail">
                       <span className="detail-label">Participants:</span>
-                      <span className="detail-value">{challenge.participants}</span>
+                      <span className="detail-value">{challenge.participants?.length || 0}</span>
                     </div>
                   </div>
                   
                   <div className="challenge-actions">
-                    <button className="btn btn-primary">Check In Today</button>
-                    <button className="btn btn-text">View Details</button>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => handleJoinChallenge(challenge._id)}
+                    >
+                      Join Challenge
+                    </button>
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="no-challenges">
+              <p>No challenges match your filters.</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {!loading && activeTab === 'my-challenges' && (
+        <div className="challenges-content">
+          {myChallenges.length > 0 ? (
+            <div className="my-challenges-grid">
+              {myChallenges.map(challenge => {
+                const progress = getProgressPercentage(challenge);
+                return (
+                  <div className="my-challenge-card" key={challenge._id}>
+                    <div className="challenge-header">
+                      <div className="challenge-category">{challenge.category}</div>
+                      {!challenge.isPublic && (
+                        <div className="private-badge">
+                          Private <span className="join-code-display">{challenge.joinCode}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h3 className="challenge-title">{challenge.title}</h3>
+                    <p className="challenge-description">{challenge.description}</p>
+                    
+                    <div className="challenge-progress">
+                      <div className="progress-label">
+                        <span>Progress</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="challenge-details">
+                      <div className="challenge-detail">
+                        <span className="detail-label">Duration:</span>
+                        <span className="detail-value">{challenge.duration} days</span>
+                      </div>
+                      <div className="challenge-detail">
+                        <span className="detail-label">Participants:</span>
+                        <span className="detail-value">{challenge.participants?.length || 0}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="challenge-actions">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleCheckInChallenge(challenge)}
+                        disabled={progress >= 100}
+                      >
+                        {progress >= 100 ? 'Completed!' : 'Check In Today'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="no-challenges">
@@ -303,54 +488,157 @@ const Challenges = () => {
         </div>
       )}
       
-      {activeTab === 'create' && (
+      {!loading && activeTab === 'create' && (
         <div className="challenges-content">
           <div className="create-challenge-container">
             <h2>Create Your Own Challenge</h2>
             <p className="create-intro">
-              Create a custom challenge for yourself or invite friends to join you on your wellness journey.
+              Create a custom challenge, add daily tasks, and inspire others on their wellness journey.
             </p>
             
-            <div className="create-options">
-              <div className="create-option-card" onClick={handleCreateChallenge}>
-                <div className="option-icon personal-icon"></div>
-                <h3>Personal Challenge</h3>
-                <p>Create a private challenge just for yourself to build a new habit or reach a goal.</p>
-                <button className="btn btn-secondary">Create Personal Challenge</button>
+            <form onSubmit={handleCreateChallenge} className="create-challenge-form">
+              <div className="form-group">
+                <label htmlFor="title">Challenge Title</label>
+                <input 
+                  type="text" 
+                  id="title"
+                  className="form-control"
+                  placeholder="e.g. 7 Days of Morning Gratitude"
+                  value={newChallenge.title}
+                  onChange={(e) => setNewChallenge({...newChallenge, title: e.target.value})}
+                  required
+                />
               </div>
-              
-              <div className="create-option-card" onClick={handleCreateChallenge}>
-                <div className="option-icon group-icon"></div>
-                <h3>Group Challenge</h3>
-                <p>Invite friends to join your challenge and motivate each other to stay consistent.</p>
-                <button className="btn btn-secondary">Create Group Challenge</button>
+
+              <div className="form-group">
+                <label htmlFor="description">Description</label>
+                <textarea 
+                  id="description"
+                  className="form-control"
+                  rows="3"
+                  placeholder="Describe the challenge goals, tasks, and what participants should expect..."
+                  value={newChallenge.description}
+                  onChange={(e) => setNewChallenge({...newChallenge, description: e.target.value})}
+                  required
+                />
               </div>
-              
-              <div className="create-option-card" onClick={handleCreateChallenge}>
-                <div className="option-icon community-icon"></div>
-                <h3>Community Challenge</h3>
-                <p>Create a public challenge open to the entire MindBloom community.</p>
-                <button className="btn btn-secondary">Create Community Challenge</button>
-              </div>
-            </div>
-            
-            <div className="challenge-templates">
-              <h3>Or Start with a Template</h3>
-              <div className="templates-grid">
-                <div className="template-card" onClick={handleCreateChallenge}>
-                  <h4>7-Day Meditation</h4>
-                  <p>Daily meditation practice for one week</p>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="category">Category</label>
+                  <select 
+                    id="category"
+                    className="form-control"
+                    value={newChallenge.category}
+                    onChange={(e) => setNewChallenge({...newChallenge, category: e.target.value})}
+                  >
+                    {categories.slice(1).map((category, index) => (
+                      <option key={index} value={category}>{category}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="template-card" onClick={handleCreateChallenge}>
-                  <h4>30-Day Gratitude</h4>
-                  <p>Daily gratitude journaling for a month</p>
-                </div>
-                <div className="template-card" onClick={handleCreateChallenge}>
-                  <h4>14-Day Digital Detox</h4>
-                  <p>Reduce screen time for two weeks</p>
+
+                <div className="form-group">
+                  <label htmlFor="difficulty">Difficulty</label>
+                  <select 
+                    id="difficulty"
+                    className="form-control"
+                    value={newChallenge.difficulty}
+                    onChange={(e) => setNewChallenge({...newChallenge, difficulty: e.target.value})}
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
                 </div>
               </div>
-            </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="duration">Duration (days)</label>
+                  <input 
+                    type="number" 
+                    id="duration"
+                    className="form-control"
+                    min="1"
+                    max="365"
+                    value={newChallenge.duration}
+                    onChange={(e) => setNewChallenge({...newChallenge, duration: parseInt(e.target.value) || 7})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="startDate">Start Date</label>
+                  <input 
+                    type="date" 
+                    id="startDate"
+                    className="form-control"
+                    value={newChallenge.startDate}
+                    onChange={(e) => setNewChallenge({...newChallenge, startDate: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group checkbox-group" onClick={() => setNewChallenge({...newChallenge, isPublic: !newChallenge.isPublic})}>
+                <input 
+                  type="checkbox" 
+                  id="isPublic"
+                  checked={newChallenge.isPublic}
+                  onChange={(e) => setNewChallenge({...newChallenge, isPublic: e.target.checked})}
+                />
+                <label htmlFor="isPublic">Make this challenge public (anyone can discover and join)</label>
+              </div>
+
+              <div className="tasks-section">
+                <h3>
+                  <span>Challenge Tasks</span>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={addEmptyTask}>
+                    + Add Task
+                  </button>
+                </h3>
+                
+                {newChallenge.tasks.map((task, index) => (
+                  <div key={index} className="task-inputs-row">
+                    <div className="form-group task-input-field">
+                      <input 
+                        type="text" 
+                        placeholder="Task name (e.g. Write down 3 items of gratitude)" 
+                        className="form-control"
+                        value={task.name}
+                        onChange={(e) => handleTaskChange(index, 'name', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group task-duration-field">
+                      <input 
+                        type="number" 
+                        placeholder="Mins" 
+                        title="Duration in minutes"
+                        className="form-control"
+                        min="0"
+                        value={task.duration}
+                        onChange={(e) => handleTaskChange(index, 'duration', parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    {newChallenge.tasks.length > 1 && (
+                      <button 
+                        type="button" 
+                        className="btn btn-danger" 
+                        onClick={() => removeTaskField(index)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', marginTop: '10px' }}>
+                Create Challenge
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -344,3 +344,219 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Achievements Tab Styles */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.achievement-card {
+  background-color: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: left;
+}
+
+.achievement-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+.achievement-card.completed {
+  border: 1px solid #ffd700;
+  background: linear-gradient(180deg, #ffffff 0%, #fffdf0 100%);
+}
+
+.achievement-badge {
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+}
+
+.achievement-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.achievement-description {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin-bottom: 15px;
+}
+
+.achievement-progress-container {
+  margin-top: auto;
+  margin-bottom: 15px;
+}
+
+.achievement-progress-lbl {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.achievement-card.completed .achievement-progress-lbl {
+  color: #b8860b;
+}
+
+.achievement-xp-reward {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #6a11cb;
+  margin-bottom: 10px;
+}
+
+/* Habit tab improvements */
+.habits-tab-container {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+@media (max-width: 992px) {
+  .habits-tab-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.habits-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.habit-details-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  transition: all 0.3s ease;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.habit-details-card:hover {
+  transform: translateX(5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.habit-details-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.habit-details-info h4 {
+  font-size: 1.25rem;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.habit-details-info p {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.habit-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.btn-complete {
+  background: linear-gradient(90deg, #00b09b 0%, #96c93d 100%);
+  color: white;
+  font-weight: bold;
+}
+
+.btn-complete:hover {
+  box-shadow: 0 5px 15px rgba(0, 176, 155, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-complete:disabled {
+  background: #e0e0e0;
+  color: #999;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.habit-form-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  text-align: left;
+  height: fit-content;
+}
+
+.habit-form-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.habit-form-card .form-group {
+  margin-bottom: 15px;
+}
+
+.habit-form-card label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.habit-form-card input, .habit-form-card textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: #f9f9f9;
+}
+
+.habit-form-card input:focus, .habit-form-card textarea:focus {
+  outline: none;
+  border-color: #6a11cb;
+  background-color: white;
+}
+
+/* Tooltip style */
+.mood-val-tooltip {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.mood-bar:hover .mood-val-tooltip {
+  opacity: 1;
+}

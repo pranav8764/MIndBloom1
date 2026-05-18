@@ -66,7 +66,12 @@ router.post('/', auth, async (req, res) => {
       startDate: startDate ? new Date(startDate) : new Date(),
       tasks,
       isPublic: isPublic || false,
-      participants: [{ user: req.userId, joinedAt: new Date(), isCreator: true }]
+      participants: [{
+        user: req.userId,
+        joinDate: new Date(),
+        isActive: true,
+        progress: []
+      }]
     });
 
     // Save challenge
@@ -99,8 +104,14 @@ router.get('/', auth, async (req, res) => {
       search
     } = req.query;
 
-    // Build query
-    const query = {};
+    // Build query with access control
+    const query = {
+      $or: [
+        { isPublic: true },
+        { creator: req.userId },
+        { 'participants.user': req.userId }
+      ]
+    };
     
     // Filter by category
     if (category) {
@@ -131,9 +142,13 @@ router.get('/', auth, async (req, res) => {
     
     // Search by title or description
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+      query.$and = [
+        {
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+          ]
+        }
       ];
     }
 
@@ -152,6 +167,63 @@ router.get('/', auth, async (req, res) => {
       total,
       hasMore: total > parseInt(skip) + challenges.length
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   POST /api/challenges/join-code/:code
+// @desc    Join a private challenge by join code
+// @access  Private
+router.post('/join-code/:code', auth, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ joinCode: req.params.code });
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found with this join code' });
+    }
+    
+    // Check if user is already a participant
+    const isParticipant = challenge.participants.some(
+      participant => participant.user.toString() === req.userId.toString()
+    );
+    if (isParticipant) {
+      return res.status(400).json({ message: 'You are already a participant in this challenge' });
+    }
+
+    // Add user to participants
+    challenge.participants.push({
+      user: req.userId,
+      joinDate: new Date(),
+      isActive: true,
+      progress: challenge.tasks.map(task => ({
+        taskId: task._id,
+        isCompleted: false,
+        completedAt: null
+      }))
+    });
+
+    await challenge.save();
+
+    // Update user's joined challenges count
+    await User.findByIdAndUpdate(req.userId, {
+      $inc: { 'stats.challengesJoined': 1 }
+    });
+
+    // Update challenge achievements
+    const challengeAchievements = await Achievement.find({
+      user: req.userId,
+      category: 'Challenges',
+      isCompleted: false
+    });
+
+    // Update achievement progress
+    for (const achievement of challengeAchievements) {
+      if (achievement.title === 'Challenge Accepted') {
+        await achievement.updateProgress(1);
+      }
+    }
+
+    res.json(challenge);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -186,8 +258,8 @@ router.post('/:id/join', auth, async (req, res) => {
     // Add user to participants
     challenge.participants.push({
       user: req.userId,
-      joinedAt: new Date(),
-      isCreator: false,
+      joinDate: new Date(),
+      isActive: true,
       progress: challenge.tasks.map(task => ({
         taskId: task._id,
         isCompleted: false,
@@ -245,7 +317,7 @@ router.post('/:id/leave', auth, async (req, res) => {
     }
 
     // Check if user is the creator
-    const isCreator = challenge.participants[participantIndex].isCreator;
+    const isCreator = challenge.creator.toString() === req.userId.toString();
     if (isCreator) {
       return res.status(400).json({ message: 'Creator cannot leave the challenge. Delete it instead.' });
     }
@@ -353,7 +425,7 @@ router.post('/:id/task/:taskId/complete', auth, async (req, res) => {
     await User.findByIdAndUpdate(req.userId, {
       $inc: { 
         'stats.tasksCompleted': 1,
-        'stats.xp': xpPerTask
+        'xp': xpPerTask
       }
     });
 
@@ -364,7 +436,7 @@ router.post('/:id/task/:taskId/complete', auth, async (req, res) => {
       // Award bonus XP for completing all tasks
       const bonusXp = 50;
       await User.findByIdAndUpdate(req.userId, {
-        $inc: { 'stats.xp': bonusXp, 'stats.challengesCompleted': 1 }
+        $inc: { 'xp': bonusXp, 'stats.completedChallenges': 1 }
       });
 
       // Update challenge achievements
@@ -403,6 +475,16 @@ router.get('/:id', auth, async (req, res) => {
 
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    // Check access control for private challenges
+    const isParticipant = challenge.participants.some(
+      p => p.user._id.toString() === req.userId.toString()
+    );
+    const isCreator = challenge.creator._id.toString() === req.userId.toString();
+    
+    if (!challenge.isPublic && !isCreator && !isParticipant) {
+      return res.status(403).json({ message: 'Access denied to this private challenge' });
     }
 
     res.json(challenge);
