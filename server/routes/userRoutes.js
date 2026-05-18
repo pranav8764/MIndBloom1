@@ -1,8 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { Achievement, Badge } = require("../models/Achievement");
 
@@ -239,4 +237,21 @@ router.put("/profile", auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/leaderboard
+// @desc    Get user leaderboard
+// @access  Private
+router.get("/leaderboard", auth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const users = await User.find({})
+      .select("username firstName lastName avatar xp level")
+      .sort({ xp: -1 })
+      .limit(limit);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;
+
