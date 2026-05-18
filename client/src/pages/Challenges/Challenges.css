@@ -469,3 +469,148 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Form styles for create challenge */
+.create-challenge-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 750px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.form-control {
+  padding: 12px 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background-color: #f9f9f9;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #6a11cb;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.1);
+}
+
+.checkbox-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.checkbox-group input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.tasks-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  background-color: #fafbfc;
+}
+
+.tasks-section h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-inputs-row {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.task-inputs-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.task-input-field {
+  flex: 2;
+  min-width: 150px;
+}
+
+.task-duration-field {
+  flex: 1;
+  min-width: 80px;
+}
+
+.btn-danger {
+  background-color: #ffeef0;
+  color: #ff5e62;
+  border: 1px solid #ffccd0;
+}
+
+.btn-danger:hover {
+  background-color: #ffccd0;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.error-message {
+  background-color: #fff0f0;
+  color: #ff5e62;
+  border: 1px solid #ffccd0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.join-code-display {
+  background: #f0f7ff;
+  border: 1px dashed #2575fc;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: monospace;
+  font-weight: bold;
+  color: #2575fc;
+  font-size: 0.9rem;
+}

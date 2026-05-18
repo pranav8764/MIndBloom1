@@ -76,6 +76,11 @@ export const authService = {
   isAuthenticated: () => {
     return !!localStorage.getItem("token");
   },
+
+  checkIn: async () => {
+    const response = await api.post("/auth/check-in");
+    return response.data;
+  },
 };
 
 // Journal services
@@ -152,8 +157,10 @@ export const challengeService = {
     return response.data;
   },
 
-  joinChallenge: async (id) => {
-    const response = await api.post(`/challenges/${id}/join`);
+  joinChallenge: async (idOrCode) => {
+    const isId = /^[0-9a-fA-F]{24}$/.test(idOrCode);
+    const endpoint = isId ? `/challenges/${idOrCode}/join` : `/challenges/join-code/${idOrCode}`;
+    const response = await api.post(endpoint);
     return response.data;
   },
 
@@ -220,8 +227,36 @@ export const achievementService = {
   },
 };
 
+// Habit services
+export const habitService = {
+  getHabits: async () => {
+    const response = await api.get("/habits");
+    return response.data;
+  },
+
+  createHabit: async (habitData) => {
+    const response = await api.post("/habits", habitData);
+    return response.data;
+  },
+
+  completeHabit: async (id) => {
+    const response = await api.put(`/habits/${id}/complete`);
+    return response.data;
+  },
+
+  deleteHabit: async (id) => {
+    const response = await api.delete(`/habits/${id}`);
+    return response.data;
+  },
+};
+
 // User stats and profile services
 export const userService = {
+  getProfile: async () => {
+    const response = await api.get("/auth/me");
+    return response.data;
+  },
+
   getStats: async () => {
     const response = await api.get("/auth/stats");
     return response.data;
@@ -232,8 +267,11 @@ export const userService = {
     return response.data;
   },
 
-  updateAvatar: async (avatarData) => {
-    const response = await api.put("/auth/avatar", avatarData);
+  updateAvatar: async (avatarUrl) => {
+    const response = await api.put("/auth/me", { avatar: avatarUrl });
+    if (response.data) {
+      localStorage.setItem("user", JSON.stringify(response.data));
+    }
     return response.data;
   },
 
@@ -251,4 +289,5 @@ export default {
   challenges: challengeService,
   achievements: achievementService,
   user: userService,
+  habits: habitService,
 };

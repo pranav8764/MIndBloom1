@@ -21,7 +21,7 @@ router.post("/", auth, async (req, res) => {
       tags,
       gratitude,
       activities,
-      isPrivate,
+      isPrivate: isPrivate !== undefined ? isPrivate : false,
     });
 
     // Save journal entry

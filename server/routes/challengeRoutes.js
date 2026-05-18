@@ -66,7 +66,12 @@ router.post('/', auth, async (req, res) => {
       startDate: startDate ? new Date(startDate) : new Date(),
       tasks,
       isPublic: isPublic || false,
-      participants: [{ user: req.userId, joinedAt: new Date(), isCreator: true }]
+      participants: [{
+        user: req.userId,
+        joinDate: new Date(),
+        isActive: true,
+        progress: []
+      }]
     });
 
     // Save challenge
@@ -167,6 +172,63 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/challenges/join-code/:code
+// @desc    Join a private challenge by join code
+// @access  Private
+router.post('/join-code/:code', auth, async (req, res) => {
+  try {
+    const challenge = await Challenge.findOne({ joinCode: req.params.code });
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found with this join code' });
+    }
+    
+    // Check if user is already a participant
+    const isParticipant = challenge.participants.some(
+      participant => participant.user.toString() === req.userId.toString()
+    );
+    if (isParticipant) {
+      return res.status(400).json({ message: 'You are already a participant in this challenge' });
+    }
+
+    // Add user to participants
+    challenge.participants.push({
+      user: req.userId,
+      joinDate: new Date(),
+      isActive: true,
+      progress: challenge.tasks.map(task => ({
+        taskId: task._id,
+        isCompleted: false,
+        completedAt: null
+      }))
+    });
+
+    await challenge.save();
+
+    // Update user's joined challenges count
+    await User.findByIdAndUpdate(req.userId, {
+      $inc: { 'stats.challengesJoined': 1 }
+    });
+
+    // Update challenge achievements
+    const challengeAchievements = await Achievement.find({
+      user: req.userId,
+      category: 'Challenges',
+      isCompleted: false
+    });
+
+    // Update achievement progress
+    for (const achievement of challengeAchievements) {
+      if (achievement.title === 'Challenge Accepted') {
+        await achievement.updateProgress(1);
+      }
+    }
+
+    res.json(challenge);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   POST /api/challenges/:id/join
 // @desc    Join a challenge
 // @access  Private
@@ -196,8 +258,8 @@ router.post('/:id/join', auth, async (req, res) => {
     // Add user to participants
     challenge.participants.push({
       user: req.userId,
-      joinedAt: new Date(),
-      isCreator: false,
+      joinDate: new Date(),
+      isActive: true,
       progress: challenge.tasks.map(task => ({
         taskId: task._id,
         isCompleted: false,
@@ -255,7 +317,7 @@ router.post('/:id/leave', auth, async (req, res) => {
     }
 
     // Check if user is the creator
-    const isCreator = challenge.participants[participantIndex].isCreator;
+    const isCreator = challenge.creator.toString() === req.userId.toString();
     if (isCreator) {
       return res.status(400).json({ message: 'Creator cannot leave the challenge. Delete it instead.' });
     }

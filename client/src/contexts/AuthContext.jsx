@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
-import { userService } from '../services/apiService';
+import { userService, achievementService } from '../services/apiService';
 
 const AuthContext = createContext(undefined);
 
@@ -33,6 +33,16 @@ export const AuthProvider = ({ children }) => {
           // Fetch our custom user profile from backend (creates if missing)
           const profile = await userService.getProfile();
           setCurrentUser({ ...profile, email: clerkUser.primaryEmailAddress?.emailAddress });
+          
+          // Initialize achievements after authentication
+          try {
+            await achievementService.initializeAchievements();
+          } catch (achErr) {
+            // Silently ignore 400 errors (already initialized)
+            if (achErr.response?.status !== 400) {
+              console.error('Error initializing achievements:', achErr);
+            }
+          }
         } catch (err) {
           console.error('Error syncing user profile:', err);
           setError('Failed to load user profile');
