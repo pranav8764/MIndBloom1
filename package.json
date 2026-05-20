@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix mindbloom-frontend\"",
+    "dev:frontend": "npm run dev --prefix mindbloom-frontend",
     "dev:server": "npm run dev --prefix server",
-    "build": "npm run build --prefix client",
-    "preview": "npm run preview --prefix client",
+    "build": "npm run build --prefix mindbloom-frontend",
+    "preview": "npm run preview --prefix mindbloom-frontend",
     "test:server": "node server/test-server.js",
-    "setup": "npm install --prefix client && npm install --prefix server"
+    "setup": "npm install --prefix mindbloom-frontend && npm install --prefix server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
