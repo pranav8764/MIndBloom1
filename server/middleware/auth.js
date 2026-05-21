@@ -1,5 +1,5 @@
 // server/middleware/auth.js
-const { requireAuth } = require('@clerk/express');
+
 const { createClerkClient } = require('@clerk/clerk-sdk-node');
 const User = require('../models/User');
 const { Achievement } = require('../models/Achievement');
@@ -86,11 +86,27 @@ const attachMongoUser = async (req, res, next) => {
   }
 };
 
-const ensureAuth = (req, res, next) => {
-  if (!req.auth || !req.auth.userId) {
+const ensureAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Unauthorized: Missing or invalid token' });
   }
-  next();
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    // Explicitly verify the token to bypass silent failures in clerkMiddleware
+    const verifiedToken = await clerkClient.verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+    
+    // Set req.auth so that attachMongoUser works as expected
+    req.auth = { userId: verifiedToken.sub };
+    next();
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+  }
 };
 
 module.exports = [ensureAuth, attachMongoUser];

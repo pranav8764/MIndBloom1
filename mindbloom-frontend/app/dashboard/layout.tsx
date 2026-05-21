@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isLoaded) return;
 
     if (!isSignedIn) {
-      router.push('/sign-in');
+      router.push('/login');
       return;
     }
 

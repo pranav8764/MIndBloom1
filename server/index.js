@@ -3,7 +3,7 @@ const express = require("express");
 const http = require("http");
 const { connect } = require("mongoose");
 const cors = require("cors");
-const { clerkMiddleware } = require("@clerk/express");
+
 const rateLimit = require("express-rate-limit");
 
 // Import routes
@@ -56,8 +56,7 @@ app.post("/api/auth/test-register", authLimiter, (req, res) => {
   });
 });
 
-// Apply Clerk middleware after test endpoints
-app.use(clerkMiddleware());
+
 
 // Connect to MongoDB - Use MONGODB_URI from environment
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;

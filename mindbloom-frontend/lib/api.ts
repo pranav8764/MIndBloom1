@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { getAuth } from '@clerk/nextjs/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,16 +9,30 @@ const api = axios.create({
   },
 });
 
+// Request interceptor for injecting Clerk JWT token
+api.interceptors.request.use(async (config) => {
+  if (typeof window !== 'undefined') {
+    const clerk = (window as any).Clerk;
+    if (clerk) {
+      try {
+        const token = await clerk.session?.getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (err) {
+        console.error('Error getting Clerk token:', err);
+      }
+    }
+  }
+  return config;
+});
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Let Clerk handle authentication redirects
-      if (typeof window !== 'undefined') {
-        window.location.href = '/sign-in';
-      }
-    }
+    // Don't redirect on 401 - the dashboard layout handles auth via Clerk's useUser() hook.
+    // Redirecting here causes an infinite loop: dashboard -> 401 -> /login -> already signed in -> /dashboard -> 401...
     return Promise.reject(error);
   }
 );
