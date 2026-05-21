@@ -1,29 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function ProfilePage() {
   const { user, updateProfile, isLoading, error } = useAuthStore();
   const [formData, setFormData] = useState({ username: '', email: '' });
+  const [hasEdited, setHasEdited] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      setFormData({ username: user.username, email: user.email });
-    }
-  }, [user]);
+  const effectiveFormData = user && !hasEdited ? { username: user.username, email: user.email } : formData;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setHasEdited(true);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await updateProfile(formData);
+      await updateProfile(effectiveFormData);
       setSuccessMessage('Profile updated successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
@@ -32,73 +30,77 @@ export default function ProfilePage() {
   };
 
   return (
-    <div>
-      <Link href="/dashboard" className="text-blue-600 hover:underline mb-6 inline-block">
-        ← Back to Dashboard
-      </Link>
+    <div className="space-y-8">
+      <div className="flex items-center gap-3 text-sm text-slate-700">
+        <Link href="/dashboard" className="font-medium text-slate-900 hover:text-slate-700">
+          ← Back to Dashboard
+        </Link>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Profile Card */}
-        <div className="md:col-span-1">
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <div className="text-6xl mb-4">👤</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{user?.username}</h2>
-            <p className="text-gray-600 mb-4">{user?.email}</p>
-            <div className="space-y-2">
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-600">Level</p>
-                <p className="text-2xl font-bold text-blue-600">{user?.level}</p>
-              </div>
-              <div className="bg-purple-50 p-3 rounded-lg">
-                <p className="text-sm text-gray-600">Total XP</p>
-                <p className="text-2xl font-bold text-purple-600">{user?.totalXP}</p>
-              </div>
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <div className="mb-6 rounded-full bg-slate-100 p-6 text-6xl">👤</div>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">{user?.username}</h2>
+          <p className="text-slate-600 mb-6">{user?.email}</p>
+          <div className="space-y-4">
+            <div className="rounded-[24px] bg-slate-50 p-4 text-left">
+              <p className="text-sm text-slate-500">Level</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{user?.level}</p>
+            </div>
+            <div className="rounded-[24px] bg-slate-50 p-4 text-left">
+              <p className="text-sm text-slate-500">Total XP</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{user?.totalXP}</p>
             </div>
           </div>
         </div>
 
-        {/* Edit Form */}
-        <div className="md:col-span-2">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">Edit Profile</h3>
+        <div className="lg:col-span-2 rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+          <h3 className="text-2xl font-semibold text-slate-900 mb-6">Edit Profile</h3>
 
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">{error}</div>}
-            {successMessage && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg">{successMessage}</div>}
+          {error && (
+            <div className="mb-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-rose-700">
+              {error}
+            </div>
+          )}
+          {successMessage && (
+            <div className="mb-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
+              {successMessage}
+            </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+              <input
+                type="text"
+                name="username"
+                value={effectiveFormData.username}
+                onChange={handleChange}
+                className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled
-                />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={effectiveFormData.email}
+                onChange={handleChange}
+                disabled
+                className="w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-slate-700 outline-none"
+              />
+              <p className="mt-2 text-xs text-slate-500">Email cannot be changed</p>
+            </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {isLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </form>
-          </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+            >
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
         </div>
       </div>
     </div>

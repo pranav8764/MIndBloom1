@@ -11,73 +11,63 @@ export default function AchievementsPage() {
   }, [getAchievements]);
 
   if (isLoading) {
-    return <div className="text-center py-12">Loading achievements...</div>;
+    return <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">Loading achievements...</div>;
   }
 
-  const unlockedCount = achievements.filter((a) => a.isCompleted).length;
+  const unlockedCount = achievements.filter((achievement) => achievement.isCompleted).length;
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">🏆 Achievements</h1>
-        <p className="text-gray-600">
-          You've unlocked {unlockedCount} of {achievements.length} achievements
-        </p>
+    <div className="space-y-8">
+      <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold text-slate-900">🏆 Achievements</h1>
+            <p className="mt-2 text-slate-600">You&apos;ve unlocked {unlockedCount} of {achievements.length} achievements.</p>
+          </div>
+          <div className="rounded-full bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+            {achievements.length ? `${Math.round((unlockedCount / achievements.length) * 100)}% Complete` : '0% Complete'}
+          </div>
+        </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+      <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="relative h-3 overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-sky-500 to-violet-600 transition-all duration-500"
             style={{ width: achievements.length ? `${(unlockedCount / achievements.length) * 100}%` : '0%' }}
           />
         </div>
-        <p className="text-center text-gray-600 mt-2 text-sm">
-          {achievements.length ? Math.round((unlockedCount / achievements.length) * 100) : 0}% Complete
-        </p>
       </div>
 
-      {/* Achievements Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {achievements.map((achievement) => (
           <div
             key={achievement._id}
-            className={`rounded-lg shadow p-6 transition transform hover:scale-105 ${
-              achievement.isCompleted
-                ? 'bg-white border-2 border-yellow-400'
-                : 'bg-gray-100 opacity-75'
+            className={`rounded-[28px] border p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
+              achievement.isCompleted ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50 opacity-95'
             }`}
           >
-            <div className="text-4xl mb-3">{achievement.icon || '🏅'}</div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">{achievement.title}</h3>
-            <p className="text-sm text-gray-600 mb-4">{achievement.description}</p>
+            <div className="text-4xl mb-4">{achievement.icon || '🏅'}</div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">{achievement.title}</h3>
+            <p className="text-sm leading-6 text-slate-600 mb-6">{achievement.description}</p>
 
-            <div className="mb-4">
-              <div className="relative h-2 bg-gray-300 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 transition-all"
-                  style={{
-                    width: `${achievement.target ? (achievement.currentValue / achievement.target) * 100 : 0}%`,
-                  }}
-                />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full bg-sky-500 transition-all"
+                    style={{ width: `${achievement.target ? (achievement.currentValue / achievement.target) * 100 : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">{achievement.currentValue} / {achievement.target}</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {achievement.currentValue} / {achievement.target}
-              </p>
-            </div>
 
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-blue-600">+{achievement.xpReward} XP</span>
-              <span
-                className={`text-sm font-medium px-3 py-1 rounded-full ${
-                  achievement.isCompleted
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-300 text-gray-700'
-                }`}
-              >
-                {achievement.isCompleted ? '✓ Unlocked' : 'Locked'}
-              </span>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-semibold text-sky-600">+{achievement.xpReward} XP</span>
+                <span className={`rounded-full px-3 py-1 text-sm font-medium ${achievement.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+                  {achievement.isCompleted ? 'Unlocked' : 'Locked'}
+                </span>
+              </div>
             </div>
           </div>
         ))}

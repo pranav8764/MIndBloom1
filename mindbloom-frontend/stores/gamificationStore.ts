@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { create } from 'zustand';
 import { achievementAPI, challengeAPI } from '@/lib/api';
 
@@ -21,12 +22,12 @@ export interface Challenge {
   description: string;
   category: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  participants: any[];
+  participants: Array<Record<string, unknown>>;
   startDate: string;
   endDate: string;
   isPublic: boolean;
   createdAt: string;
-  creator?: any;
+  creator?: Record<string, unknown>;
 }
 
 interface GamificationState {
@@ -39,12 +40,22 @@ interface GamificationState {
 
   // Actions
   getAchievements: () => Promise<void>;
-  getChallenges: (params?: any) => Promise<void>;
+  getChallenges: (params?: Record<string, unknown>) => Promise<void>;
   getActiveChallenges: () => Promise<void>;
   joinChallenge: (challengeId: string) => Promise<void>;
   claimReward: (achievementId: string) => Promise<void>;
   clearError: () => void;
 }
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return (error.response?.data as { message?: string })?.message ?? fallback;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
 
 export const useGamificationStore = create<GamificationState>((set) => ({
   achievements: [],
@@ -59,8 +70,8 @@ export const useGamificationStore = create<GamificationState>((set) => ({
     try {
       const { data } = await achievementAPI.getAchievements();
       set({ achievements: data });
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to fetch achievements' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Failed to fetch achievements') });
       throw error;
     } finally {
       set({ isLoading: false });
@@ -72,8 +83,8 @@ export const useGamificationStore = create<GamificationState>((set) => ({
     try {
       const { data } = await challengeAPI.getChallenges(params);
       set({ allChallenges: data.challenges ?? [] });
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to fetch challenges' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Failed to fetch challenges') });
       throw error;
     } finally {
       set({ isLoading: false });
@@ -88,7 +99,7 @@ export const useGamificationStore = create<GamificationState>((set) => ({
         activeChallenges: data,
         joinedIds: data.map((c: Challenge) => c._id),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to fetch active challenges:', error);
     } finally {
       set({ isLoading: false });
@@ -102,8 +113,8 @@ export const useGamificationStore = create<GamificationState>((set) => ({
       set((state) => ({
         joinedIds: [...state.joinedIds, challengeId],
       }));
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to join challenge' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Failed to join challenge') });
       throw error;
     } finally {
       set({ isLoading: false });
@@ -119,8 +130,8 @@ export const useGamificationStore = create<GamificationState>((set) => ({
           a._id === achievementId ? { ...a, rewardClaimed: true } : a
         ),
       }));
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to claim reward' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Failed to claim reward') });
       throw error;
     } finally {
       set({ isLoading: false });

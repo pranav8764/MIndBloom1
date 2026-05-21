@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { create } from 'zustand';
 import { authAPI } from '@/lib/api';
 
@@ -22,6 +23,16 @@ interface AuthState {
   clearError: () => void;
 }
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    return (error.response?.data as { message?: string })?.message ?? fallback;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: false,
@@ -32,8 +43,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await authAPI.getMe();
       set({ user: data });
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Failed to fetch user' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Failed to fetch user') });
       throw error;
     } finally {
       set({ isLoading: false });
@@ -45,8 +56,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data: updated } = await authAPI.updateProfile(data);
       set({ user: updated });
-    } catch (error: any) {
-      set({ error: error.response?.data?.message || 'Update failed' });
+    } catch (error: unknown) {
+      set({ error: getErrorMessage(error, 'Update failed') });
       throw error;
     } finally {
       set({ isLoading: false });

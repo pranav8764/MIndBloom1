@@ -2,6 +2,12 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
+type ClerkSession = { session?: { getToken?: () => Promise<string> } };
+type ClerkWindow = Window & { Clerk?: ClerkSession };
+type ApiPayload = Record<string, unknown>;
+
+type ApiParams = Record<string, unknown>;
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -12,14 +18,14 @@ const api = axios.create({
 // Request interceptor for injecting Clerk JWT token
 api.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
-    const clerk = (window as any).Clerk;
-    if (clerk) {
+    const clerk = (window as ClerkWindow).Clerk;
+    if (clerk?.session?.getToken) {
       try {
-        const token = await clerk.session?.getToken();
+        const token = await clerk.session.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error getting Clerk token:', err);
       }
     }
@@ -39,14 +45,14 @@ api.interceptors.response.use(
 
 export const authAPI = {
   getMe: () => api.get('/auth/me'),
-  updateProfile: (data: Record<string, any>) => api.put('/auth/profile', data),
+  updateProfile: (data: ApiPayload) => api.put('/auth/profile', data),
   getStats: () => api.get('/auth/stats'),
 };
 
 export const journalAPI = {
-  createEntry: (data: Record<string, any>) => api.post('/journal', data),
-  getEntries: (params?: Record<string, any>) => api.get('/journal', { params }),
-  getMoodStats: (params?: Record<string, any>) => api.get('/journal/stats/mood', { params }),
+  createEntry: (data: ApiPayload) => api.post('/journal', data),
+  getEntries: (params?: ApiParams) => api.get('/journal', { params }),
+  getMoodStats: (params?: ApiParams) => api.get('/journal/stats/mood', { params }),
   getStreak: () => api.get('/journal/stats/streak'),
 };
 
@@ -57,16 +63,16 @@ export const achievementAPI = {
 };
 
 export const challengeAPI = {
-  getChallenges: (params?: Record<string, any>) => api.get('/challenges', { params }),
-  createChallenge: (data: Record<string, any>) => api.post('/challenges', data),
+  getChallenges: (params?: ApiParams) => api.get('/challenges', { params }),
+  createChallenge: (data: ApiPayload) => api.post('/challenges', data),
   joinChallenge: (id: string) => api.post(`/challenges/${id}/join`),
   getActiveChallenges: () => api.get('/challenges/user/active'),
 };
 
 export const habitAPI = {
   getHabits: () => api.get('/habits'),
-  createHabit: (data: Record<string, any>) => api.post('/habits', data),
-  updateHabit: (id: string, data: Record<string, any>) => api.put(`/habits/${id}`, data),
+  createHabit: (data: ApiPayload) => api.post('/habits', data),
+  updateHabit: (id: string, data: ApiPayload) => api.put(`/habits/${id}`, data),
   deleteHabit: (id: string) => api.delete(`/habits/${id}`),
 };
 
