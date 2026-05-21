@@ -29,7 +29,7 @@ export default function DashboardPage() {
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const unlockedCount = achievements.filter((a) => a.isCompleted).length;
 
   return (
     <div>

@@ -46,7 +46,7 @@ export const authAPI = {
 export const journalAPI = {
   createEntry: (data: Record<string, any>) => api.post('/journal', data),
   getEntries: (params?: Record<string, any>) => api.get('/journal', { params }),
-  getMoodStats: () => api.get('/journal/stats/mood'),
+  getMoodStats: (params?: Record<string, any>) => api.get('/journal/stats/mood', { params }),
   getStreak: () => api.get('/journal/stats/streak'),
 };
 

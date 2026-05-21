@@ -22,14 +22,17 @@ export default function JournalPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const MOOD_VALUES: Record<string, number> = {
+    happy: 7, excited: 9, neutral: 5, anxious: 3, sad: 2,
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
       await createEntry({
-        title: formData.title,
         content: formData.content,
-        mood: formData.mood,
+        mood: MOOD_VALUES[formData.mood] ?? 5,
         tags,
       });
       setFormData({ title: '', content: '', mood: 'happy', tags: '' });
@@ -40,15 +43,18 @@ export default function JournalPage() {
     }
   };
 
-  const getMoodEmoji = (mood: string) => {
-    const emojis: { [key: string]: string } = {
-      happy: '😊',
-      sad: '😢',
-      neutral: '😐',
-      anxious: '😰',
-      excited: '🤩',
-    };
-    return emojis[mood] || '😊';
+  const getMoodEmoji = (mood: number | string) => {
+    if (typeof mood === 'string') {
+      const emojis: Record<string, string> = {
+        happy: '😊', sad: '😢', neutral: '😐', anxious: '😰', excited: '🤩',
+      };
+      return emojis[mood] || '😊';
+    }
+    if (mood >= 8) return '🤩';
+    if (mood >= 6) return '😊';
+    if (mood >= 4) return '😐';
+    if (mood >= 2) return '😰';
+    return '😢';
   };
 
   return (
@@ -147,12 +153,11 @@ export default function JournalPage() {
           </div>
         ) : (
           entries.map((entry: JournalEntry) => (
-            <div key={entry.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div key={entry._id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">{entry.title}</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    {new Date(entry.createdAt).toLocaleDateString()} {getMoodEmoji(entry.mood)}
+                    {new Date(entry.date || entry.createdAt).toLocaleDateString()} {getMoodEmoji(entry.mood)}
                   </p>
                 </div>
               </div>

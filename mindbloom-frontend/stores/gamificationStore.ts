@@ -2,31 +2,38 @@ import { create } from 'zustand';
 import { achievementAPI, challengeAPI } from '@/lib/api';
 
 export interface Achievement {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   icon: string;
-  unlocked: boolean;
-  progress: number;
-  maxProgress: number;
-  reward: number;
+  isCompleted: boolean;
+  rewardClaimed: boolean;
+  currentValue: number;
+  target: number;
+  xpReward: number;
+  category: string;
+  createdAt: string;
 }
 
 export interface Challenge {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  joined: boolean;
-  participants: number;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  participants: any[];
+  startDate: string;
+  endDate: string;
+  isPublic: boolean;
   createdAt: string;
+  creator?: any;
 }
 
 interface GamificationState {
   achievements: Achievement[];
   activeChallenges: Challenge[];
   allChallenges: Challenge[];
+  joinedIds: string[];
   isLoading: boolean;
   error: string | null;
 
@@ -43,6 +50,7 @@ export const useGamificationStore = create<GamificationState>((set) => ({
   achievements: [],
   activeChallenges: [],
   allChallenges: [],
+  joinedIds: [],
   isLoading: false,
   error: null,
 
@@ -63,7 +71,7 @@ export const useGamificationStore = create<GamificationState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await challengeAPI.getChallenges(params);
-      set({ allChallenges: data });
+      set({ allChallenges: data.challenges ?? [] });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Failed to fetch challenges' });
       throw error;
@@ -76,7 +84,10 @@ export const useGamificationStore = create<GamificationState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await challengeAPI.getActiveChallenges();
-      set({ activeChallenges: data });
+      set({
+        activeChallenges: data,
+        joinedIds: data.map((c: Challenge) => c._id),
+      });
     } catch (error: any) {
       console.error('Failed to fetch active challenges:', error);
     } finally {
@@ -89,9 +100,7 @@ export const useGamificationStore = create<GamificationState>((set) => ({
     try {
       await challengeAPI.joinChallenge(challengeId);
       set((state) => ({
-        allChallenges: state.allChallenges.map((c) =>
-          c.id === challengeId ? { ...c, joined: true, participants: c.participants + 1 } : c
-        ),
+        joinedIds: [...state.joinedIds, challengeId],
       }));
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Failed to join challenge' });
@@ -107,7 +116,7 @@ export const useGamificationStore = create<GamificationState>((set) => ({
       await achievementAPI.claimReward(achievementId);
       set((state) => ({
         achievements: state.achievements.map((a) =>
-          a.id === achievementId ? { ...a, unlocked: true } : a
+          a._id === achievementId ? { ...a, rewardClaimed: true } : a
         ),
       }));
     } catch (error: any) {
